@@ -42,12 +42,11 @@ print('plotAni.py: \tStarted\n')
 var_dim  = '3D'         # number of dimensions of the simulation
 nx_g     = 64           # number of cells per direction
 num_proc = 2            # number of processors per axis (assumes same for each axis)
-var_L    = 1
-var_mach = 0.1
-t_eddy   = var_L/(2*var_mach)
+t_eddy   = 5 # L/(2*Mach)
 # params: locating simulation files
 folder_main = os.path.dirname(os.path.realpath(__file__)) # get directory where file is saved
-folder_sub  = '/simDyna256/sliceFiles/' # folder where slice data is stored
+folder_sub_files = '/simDyna256/sliceFiles/' # folder where slice data is stored
+folder_sub_vis   = '/simDyna256/visFiles/' # folder where visualisation is saved
 # params: file name(s)
 bool_print_dir  = bool(0)
 name_file       = 'Turb_slice_xy_' # string that the data files start with
@@ -58,8 +57,9 @@ var_norm        = 1e-10
 var_mach        = '0p1' # strength of mach number (use 'p' instead of '.')
 var_energy      = '5' # strength of driving amplitude
 bool_min_max    = bool(0)
-col_map_min     = 2.48e-05
-col_map_max     = 7.30e+03
+col_map_min     = 2.45e-05
+col_map_max     = 3.75e+05
+bool_repeat_ani = bool(0)
 bool_save_ani   = bool(0)
 
 ##################################################################
@@ -146,7 +146,7 @@ def meetCondition(element):
 Writer = animation.writers['ffmpeg']
 writer = Writer(fps=10)
 # load and initialise data
-directory       = folder_main + folder_sub
+directory       = folder_main + folder_sub_files
 directory_files = sorted(os.listdir(directory))
 file_names      = list(filter(meetCondition, directory_files))
 file_max_num    = int(max(file_names)[-6:]) 
@@ -183,7 +183,7 @@ plt.minorticks_on()
 # animate and display plot:
 # https://stackoverflow.com/questions/44594887/how-to-update-plot-title-with-matplotlib-using-animation
 print('\nanimation: playing')
-ani = animation.FuncAnimation(fig, updateFig, updateIter, interval=100, save_count=file_max_num, repeat=bool(1))
+ani = animation.FuncAnimation(fig, updateFig, updateIter, interval=100, save_count=file_max_num, repeat=bool_repeat_ani)
 # show the animation
 plt.show()
 # show the y-domain limits
@@ -194,7 +194,8 @@ print('animation: finished')
 if bool_save_ani:
     print('\nanimation: saving')
     bool_min_max = False
-    ani_name = (directory + 'ani_StirFromFileDynamo' +
+    ani_name = (folder_main + folder_sub_vis + 
+                'ani_StirFromFileDynamo' +
                 '_var='     + name_var +            # the variable that was plotted
                 '_mach='    + str(var_mach) +       # the mach number
                 '_driving=' + str(var_energy) +     # the turbulence driving energy

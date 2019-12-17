@@ -16,29 +16,30 @@ from IPython import get_ipython
 os.system('clear')                  # clear terminal window
 get_ipython().magic('reset -sf')    # clear workspace
 plt.close('all')                    # close all pre-existing plots
-
 mpl.style.use('classic')            # plot in classic style
 
 ##################################################################
 ## USER VARIABLES
 ##################################################################
+t_eddy = 5 # L/(2*Mach)
+# Specify where files are located and need to be saved
 folder_main      = os.path.dirname(os.path.realpath(__file__)) # get directory where file is stored
-folder_sub_files = '/simDyna256/specFiles/' # folder where data is located
+folder_sub_files = '/simDyna256/spectraFiles/' # folder where data is located
 folder_sub_vis   = '/simDyna256/visFiles/' # folder where visualisation is saved
 bool_disp_folder = bool(0) # display all files that end with: name_file_*
-var_iter         = 20 # which file iter should be plotted?
-var_time         = 20/5 # what is the time (t_eddy) that corresponds with the iter being plotted?
+var_iter         = 107 # which file iter should be plotted?
+var_time         = var_iter/t_eddy # what is the time (t_eddy) that corresponds with the iter being plotted?
 # Specify which variables you want to plot
-bool_disp_header = bool(0)
-var_x_mag        = 2
+bool_disp_header = bool(1)
+var_x_mag        = 1
 var_y_mag        = 15
-var_x_vel        = 2
+var_x_vel        = 1
 var_y_vel        = 15
 # Axis domain limits
 bool_def_limits  = bool(1)
-xlim_min         = 1.5
+xlim_min         = 1
 xlim_max         = 1.3e+02
-ylim_min         = 1.0e-13
+ylim_min         = 1.0e-16
 ylim_max         = 4.2e-03
 bool_save_fig    = bool(0)
 

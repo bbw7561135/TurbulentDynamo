@@ -22,24 +22,23 @@ mpl.style.use('classic')            # plot in classic style
 ##################################################################
 ## USER VARIABLES
 ##################################################################
-t_eddy = 5
+t_eddy = 5 # L/(2*Mach)
 # Specify where files are located and need to be saved
 folder_main      = os.path.dirname(os.path.realpath(__file__)) # get directory_files where file is stored
-folder_sub_files = '/simDyna256/specFiles/' # folder where data is located
+folder_sub_files = '/simDyna256/spectraFiles/' # folder where data is located
 folder_sub_vis   = '/simDyna256/visFiles/' # folder where visualisation is saved
 bool_disp_folder = bool(0) # display all files in the directory_files
-bool_disp_header = bool(0) # display all the variables that the file contains
 # Specify which variables you want to plot
-var_x_mag        = 2
+var_x_mag        = 1
 var_y_mag        = 15
-var_x_vel        = 2
+var_x_vel        = 1
 var_y_vel        = 15
 bool_update_lim  = bool(0)
 xlim_min         = 1.5
 xlim_max         = 1.3e+02
 ylim_min         = 1.0e-13
 ylim_max         = 4.2e-03
-bool_save_ani    = bool(0)
+bool_save_ani    = bool(1)
 
 ##################################################################
 ## FUNCTIONS
