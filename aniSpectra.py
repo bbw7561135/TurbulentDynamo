@@ -1,5 +1,3 @@
-# TODO: fix the time being plotted
-
 ##################################################################
 ## MODULES
 ##################################################################
@@ -23,7 +21,7 @@ mpl.style.use('classic')            # plot in classic style
 ## USER VARIABLES
 ##################################################################
 t_eddy = 5 # L/(2*Mach)
-# Specify where files are located and need to be saved
+# Specify where files are located and needs to be saved
 folder_main      = os.path.dirname(os.path.realpath(__file__)) # get directory_files where file is stored
 folder_sub_files = '/simDyna256/spectraFiles/' # folder where data is located
 folder_sub_vis   = '/simDyna256/visFiles/' # folder where visualisation is saved
@@ -33,12 +31,14 @@ var_x_mag        = 1
 var_y_mag        = 15
 var_x_vel        = 1
 var_y_vel        = 15
-bool_update_lim  = bool(0)
-xlim_min         = 1.5
+## Choose whether you want to set the figure's axis limits
+bool_disp_limits = bool(0) # if true then axies are set automatically
+xlim_min         = 1.0
 xlim_max         = 1.3e+02
-ylim_min         = 1.0e-13
+ylim_min         = 1.0e-16
 ylim_max         = 4.2e-03
-bool_save_ani    = bool(1)
+## Should the animation be saved?
+bool_save_ani    = bool(0)
 
 ##################################################################
 ## FUNCTIONS
@@ -67,7 +67,7 @@ def loadData(directory_files, name_file, var_x, var_y):
 # http://www.roboticslab.ca/wp-content/uploads/2012/11/robotics_lab_animation_example.txt
 def updateData(data):
     global directory_files, t_eddy
-    global bool_print_progress, bool_update_lim
+    global bool_print_progress, bool_disp_limits
     global file_names_mags, data_x_mag, data_y_mag, var_x_mag, var_y_mag
     global file_names_vels, data_x_vel, data_y_vel, var_x_vel, var_y_vel
     global var_xlim_min, var_xlim_max, var_ylim_min, var_ylim_max
@@ -81,7 +81,7 @@ def updateData(data):
     # update data fields
     line_mag.set_data(data_x_mag, data_y_mag)
     line_vel.set_data(data_x_vel, data_y_vel)
-    if (bool_update_lim and (var_iter > 1)):
+    if (bool_disp_limits and (var_iter > 1)):
         line_mag.axes.set_xlim(min(data_x_mag), max(data_x_mag)) # set magnetic field x, y limits
         line_mag.axes.set_ylim(min(data_y_mag), max(data_y_mag))
         line_vel.axes.set_xlim(min(data_x_vel), max(data_x_vel)) # set velocity field x, y limits
@@ -96,36 +96,36 @@ def updateData(data):
 ##################################################################
 ## PLOTTING CODE
 ##################################################################
-# Set up animation writer
+## Set up animation writer
 Writer = animation.writers['ffmpeg']
 writer = Writer(fps=10)
-# setup information for loading data
+## setup information for loading data
 directory_files = folder_main + folder_sub_files
 file_names = sorted(os.listdir(directory_files))
 file_min_mags = file_min_vels = 0
 file_max_mags = file_max_vels = 0
-# load magnetic field data
+## load magnetic field data
 file_names_mags = list(filter(endsWithMags, file_names))
 file_min_mags   = int(min(file_names_mags)[18:22]) 
 file_max_mags   = int(max(file_names_mags)[18:22]) 
-# load velocity field data
+## load velocity field data
 file_names_vels = list(filter(endsWithVels, file_names))
 file_min_vels   = int(min(file_names_vels)[18:22]) 
 file_max_vels   = int(max(file_names_vels)[18:22]) 
-# print all relevant files to terminal
+## print all relevant files to terminal
 if bool_disp_folder:
     print('\nMagnetic files in directory_files:\n----------------------------')
     print('\n'.join(file_names_mags))
     print('\nVelocity files in directory_files:\n----------------------------')
     print('\n'.join(file_names_vels))
-# store the (maximum) number of files
+## store the minimum and maximum number of files
 file_min_num = min(file_min_mags, file_min_vels)
 file_max_num = max(file_max_mags, file_max_vels)
 bool_print_progress = False
-# load data and initialise plot for animation
+## initialise the plot and those features that will be updated by the animation
 fig = plt.figure(figsize=(10, 7), dpi=100)
 ax  = fig.add_axes([0.1, 0.1, 0.8, 0.8])
-data_x_mag = data_y_mag = 1
+data_x_mag = data_y_mag = 1 # initialise the line coordinates
 data_x_vel = data_y_vel = 1
 line_mag, = plt.plot(data_x_mag, data_y_mag, 'k--', label=r'$\mathcal{P}_{\mathregular{mag}}$')
 line_vel, = plt.plot(data_x_vel, data_y_vel, 'b--', label=r'$\mathcal{P}_{\mathregular{kin}}$')
@@ -135,37 +135,41 @@ title = ax.text(2e-2, 3e-2,
             {'color': 'k', 'fontsize': 20, 'ha': 'left', 'va': 'bottom',
             'bbox': dict(boxstyle="round", fc="w", ec="k", pad=0.2)},
             transform=ax.transAxes)
-# label plots
+## label the plot
 plt.xlabel(r'$k$', fontsize=20)
 plt.ylabel(r'$\mathcal{P}$', fontsize=20)
+## scale axies
 ax.set_xscale('log')
 ax.set_yscale('log')
-if bool_update_lim:
+if bool_disp_limits:
+    # initialise variables (updated in animation)
     var_xlim_min = np.nan
     var_xlim_max = np.nan
     var_ylim_min = np.nan
     var_ylim_max = np.nan
 else:
+    # set axies' limits
     line_mag.axes.set_xlim(xlim_min, xlim_max) # set x-axis limits
     line_vel.axes.set_xlim(xlim_min, xlim_max)
     line_mag.axes.set_ylim(ylim_min, ylim_max) # set y-axis limits
     line_vel.axes.set_ylim(ylim_min, ylim_max)
+## animate the spectra evolution
 # blit: only update portion of frame that has changed
 # interval: draw new frame every 'interval' ms
 # save_count: number of frames to draw
 ani = animation.FuncAnimation(fig, updateData, updateIter, 
                 blit=False, interval=200, save_count=file_max_num, repeat=bool(0))
-# save animation
+## save animation
 if bool_save_ani:
     print('\nsaving animation')
-    bool_print_progress = True
     ani_name = (folder_main + folder_sub_vis + 'ani_StirFromFileDynamoSpectra.mp4')
+    bool_print_progress = True # as the animation is saved output indicates its' progress
     ani.save(ani_name, writer=writer, dpi=512)
     bool_print_progress = False
     print('saved animation: \n' + ani_name)
-# show animation
+## display animation
 plt.show()
-# display the domain limit
-if bool_update_lim:
+## display the domain limits
+if bool_disp_limits:
     print('\nxlim: [%0.3e'%var_xlim_min +', %0.3e]'%var_xlim_max)
     print('ylim: [%0.3e'%var_ylim_min +', %0.3e]'%var_ylim_max)

@@ -1,5 +1,3 @@
-# TODO: 
-
 ##################################################################
 ## MODULES
 ##################################################################
@@ -8,6 +6,7 @@ import numpy as np
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import h5py
+import matplotlib.patheffects as path_effects
 
 from matplotlib.colors import LogNorm
 from matplotlib import animation
@@ -33,34 +32,33 @@ get_ipython().magic('reset -sf')    # clear workspace
 plt.close('all')                    # close all pr-existing plots
 mpl.style.use('classic')            # plot in classic style
 plt.rc('font', family='serif')      # specify font choice
-print('plotAni.py: \tStarted\n')
 
 ##################################################################
 ## PLOT DETAILS
 ##################################################################
-## params: simulation specs
-var_dim  = '3D'         # number of dimensions of the simulation
-nx_g     = 64           # number of cells per direction
-num_proc = 2            # number of processors per axis (assumes same for each axis)
-t_eddy   = 5 # L/(2*Mach)
-# params: locating simulation files
-folder_main = os.path.dirname(os.path.realpath(__file__)) # get directory where file is saved
-folder_sub_files = '/simDyna256/sliceFiles/' # folder where slice data is stored
-folder_sub_vis   = '/simDyna256/visFiles/' # folder where visualisation is saved
-# params: file name(s)
-bool_print_dir  = bool(0)
-name_file       = 'Turb_slice_xy_' # string that the data files start with
-bool_print_keys = bool(0)
-name_var        = 'mag' # data-field name
-var_label       = r'$B/B_{0}$'
-var_norm        = 1e-10
-var_mach        = '0p1' # strength of mach number (use 'p' instead of '.')
-var_energy      = '5' # strength of driving amplitude
-bool_min_max    = bool(0)
-col_map_min     = 2.45e-05
-col_map_max     = 3.75e+05
-bool_repeat_ani = bool(0)
-bool_save_ani   = bool(0)
+t_eddy = 5 # L/(2*Mach)
+## specify information about simulation setup
+var_dim             = '3D' # number of dimensions of the simulation
+nx_g                = 64   # number of cells per direction
+num_proc            = 2    # number of processors per axis (assumes same for each axis)
+## Specify where files are located and needs to be saved
+folder_main         = os.path.dirname(os.path.realpath(__file__)) # get directory where file is saved
+folder_sub_files    = '/simDyna256/sliceFiles/'                   # folder where slice data is stored
+folder_sub_vis      = '/simDyna256/visFiles/'                     # folder where visualisation is saved
+## Specify which file you want to save
+bool_print_dir      = bool(0)
+name_file           = 'Turb_slice_xy_' # string that the data files start with
+## Specify which variable you want to save
+bool_print_keys     = bool(0)
+var_norm            = 1e-10
+name_var            = 'mag' # data-field name
+var_label           = r'$B/B_{0}$'
+bool_disp_dens_limits = bool(1)
+col_map_min         = 1.12e-07
+col_map_max         = 1.48e+02
+bool_repeat_ani     = bool(0)
+## Should the animation be saved?
+bool_save_ani       = bool(0)
 
 ##################################################################
 ## FUNCTIONS
@@ -120,19 +118,16 @@ def updateIter():
         yield var_iter
 
 def updateFig(data):
-    global bool_min_max, var_abs_min, var_abs_max
+    global bool_disp_dens_limits, var_abs_min, var_abs_max
     var_iter = data
     # calculate new data
     var_cons, var_time = loadData(var_directory=directory, var_names=file_names, var_iter=var_iter, var_dim='3D')
-    if bool_min_max:
-        var_min = min(map(min, var_cons))
-        var_max = max(map(max, var_cons))
-        print('i=%i'%var_iter + '\tt(eddy)=%0.2f  '%var_time + '\tmin=%0.2e'%var_min + '\tmax=%0.2e'%var_max)
-        var_abs_min = min(var_abs_min, var_min)
-        var_abs_max = max(var_abs_max, var_max)
+    if bool_disp_dens_limits:
+        var_abs_min = min(var_abs_min, min(map(min, var_cons)))
+        var_abs_max = max(var_abs_max, max(map(max, var_cons)))
     # update data
     im.set_data(var_cons)
-    title.set_text(r"$t/t_{\mathregular{eddy}}$ = " + u"%0.1f"%(var_time))
+    title.set_text(r"$t/t_{\mathregular{eddy}} = $" + u"%0.1f"%(var_time))
     return im, title,
 
 def meetCondition(element):
@@ -142,64 +137,63 @@ def meetCondition(element):
 ##################################################################
 ## PLOTTING CODE
 ##################################################################
-# Set up animation writer
+## setup animation writer
 Writer = animation.writers['ffmpeg']
 writer = Writer(fps=10)
-# load and initialise data
+## setup information for loading data
 directory       = folder_main + folder_sub_files
 directory_files = sorted(os.listdir(directory))
 file_names      = list(filter(meetCondition, directory_files))
-file_max_num    = int(max(file_names)[-6:]) 
+file_max_num    = int(max(file_names)[-6:]) # number of frames in the animation
+## display the files in the directory
 if bool_print_dir:
     print('\nFiles in directory:')
     print('\n'.join(directory_files))
+## display the variables stored in the file
 if bool_print_keys:
     print('\nStored keys:')
     print('\n'.join(list(h5py.File(directory + file_names[0], 'r').keys())))
+## load data
 var_cons, _ = loadData(var_directory=directory, var_names=file_names, var_iter=0, var_dim='3D')
-var_abs_min = min(map(min, var_cons)) # initialise the absolute minimum value
-var_abs_max = max(map(max, var_cons)) # initialise the absolute maximum value
-# plot
-fig   = plt.figure()
-ax    = fig.add_axes([0.1, 0.1, 0.8, 0.8])
-im    = plt.imshow(var_cons, 
+var_abs_min = min(map(min, var_cons)) # initialise the absolute minimum value (updated in the animation)
+var_abs_max = max(map(max, var_cons)) # initialise the absolute maximum value (updated in the animation)
+## initialise the plot and those features that will be updated by the animation
+fig = plt.figure(figsize=(10, 7), dpi=100)
+ax  = fig.add_axes([0.1, 0.1, 0.8, 0.8])
+im  = plt.imshow(var_cons, 
             extent=(0.0, 1.0, 0.0, 1.0),
             interpolation='none',
             cmap='plasma',
             norm=LogNorm(),
             animated=True)
-title = ax.text(0.05, 0.95, 
-            r"$t/t_{\mathregular{eddy}}$ = " + u"{}".format(0), 
-            bbox={'facecolor':'w', 'alpha':0.5, 'pad':5},
-            transform=ax.transAxes, 
-            ha="left", va='top') 
-cbar = plt.colorbar(label=var_label)
-plt.clim(col_map_min, col_map_max)
-plt.xlim([0.0,1.0]); plt.ylim([0.0,1.0])
-plt.xticks([0.0,0.5,1.0]); plt.yticks([0.0,0.5,1.0])
-plt.xticks([0.0,0.5,1.0], [r'$0$', r'$L/2$', r'$L$'])
-plt.yticks([0.0,0.5,1.0], [r'$0$', r'$L/2$', r'$L$'])
+title = ax.text(0.05, 0.95,
+            r"$t/t_{\mathregular{eddy}} = $" + u"{}".format(0), 
+            fontsize=17, color='black', path_effects=[path_effects.withSimplePatchShadow(offset=(1, -1))],
+            ha="left", va='top', transform=ax.transAxes)
+## label the plot
+cbar = plt.colorbar(label=var_label) # colour bar
+plt.clim(col_map_min, col_map_max) # set the colour bar limits
+plt.xlim([0.0,1.0]); plt.ylim([0.0,1.0]) # set the x,y-limits
+plt.xticks([0.0,0.5,1.0]); plt.yticks([0.0,0.5,1.0]) # specify marker points
+plt.xticks([0.0,0.5,1.0], [r'$0$', r'$L/2$', r'$L$'], fontsize=17) # label the marker points
+plt.yticks([0.0,0.5,1.0], [r'$0$', r'$L/2$', r'$L$'], fontsize=17)
 plt.minorticks_on()
-# animate and display plot:
+## animate and display plot:
 # https://stackoverflow.com/questions/44594887/how-to-update-plot-title-with-matplotlib-using-animation
-print('\nanimation: playing')
 ani = animation.FuncAnimation(fig, updateFig, updateIter, interval=100, save_count=file_max_num, repeat=bool_repeat_ani)
-# show the animation
-plt.show()
-# show the y-domain limits
-if bool_min_max:
-    print('\t\t\tmin=%0.2e'%var_abs_min + '\tmax=%0.2e'%var_abs_max)
-print('animation: finished')
-# save plot
+## save plot
 if bool_save_ani:
-    print('\nanimation: saving')
-    bool_min_max = False
+    print('\nsaving animation')
     ani_name = (folder_main + folder_sub_vis + 
                 'ani_StirFromFileDynamo' +
-                '_var='     + name_var +            # the variable that was plotted
-                '_mach='    + str(var_mach) +       # the mach number
-                '_driving=' + str(var_energy) +     # the turbulence driving energy
+                '_var=' + name_var +                # the variable that was plotted
                 '.mp4')                             # if the time domain was subsetted
+    bool_print_progress = True
     ani.save(ani_name, writer=writer, dpi=512)
-    print('animation: saved')
-print('\nplotAni.py: \tFinished')
+    bool_print_progress = False
+    print('saved animation: \n' + ani_name)
+## display the animation
+plt.show()
+## display the y-domain limits
+if bool_disp_dens_limits:
+    print('set colour-bar: \n\tmin=%0.2e'%var_abs_min + '\tmax=%0.2e'%var_abs_max)

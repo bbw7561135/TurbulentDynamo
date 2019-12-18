@@ -1,5 +1,3 @@
-# TODO: fix the time being plotted
-
 ##################################################################
 ## MODULES
 ##################################################################
@@ -22,25 +20,27 @@ mpl.style.use('classic')            # plot in classic style
 ## USER VARIABLES
 ##################################################################
 t_eddy = 5 # L/(2*Mach)
-# Specify where files are located and need to be saved
+# Specify where files are located and needs to be saved
 folder_main      = os.path.dirname(os.path.realpath(__file__)) # get directory where file is stored
 folder_sub_files = '/simDyna256/spectraFiles/' # folder where data is located
 folder_sub_vis   = '/simDyna256/visFiles/' # folder where visualisation is saved
 bool_disp_folder = bool(0) # display all files that end with: name_file_*
-var_iter         = 107 # which file iter should be plotted?
+## Specify which variables you want to plot
+var_iter         = 1 # which file iter should be plotted?
 var_time         = var_iter/t_eddy # what is the time (t_eddy) that corresponds with the iter being plotted?
-# Specify which variables you want to plot
+## Specify which variables you want to plot
 bool_disp_header = bool(1)
 var_x_mag        = 1
 var_y_mag        = 15
 var_x_vel        = 1
 var_y_vel        = 15
-# Axis domain limits
-bool_def_limits  = bool(1)
+## Set the figure's axis limits
+bool_set_limits  = bool(1)
 xlim_min         = 1
 xlim_max         = 1.3e+02
 ylim_min         = 1.0e-16
 ylim_max         = 4.2e-03
+## Should the plot be saved?
 bool_save_fig    = bool(0)
 
 ##################################################################
@@ -85,35 +85,40 @@ ax            = fig.add_subplot()
 ## load and plot data sets
 # Magnetic power spectrum
 header_names_mag, data_x_mag, data_y_mag = loadData(directory, name_file_mag, var_x_mag, var_y_mag, bool_disp_folder, bool_disp_header)
-line_mag, = plt.plot(data_x_mag, data_y_mag, 'k--', label=r'$\mathcal{P}_{\mathregular{mag}}$')
+line_mag, = plt.plot(data_x_mag, data_y_mag, 'k', label=r'$\mathcal{P}_{\mathregular{mag}}$')
 plt.xlim(data_x_mag[0], data_x_mag[-1])
 # Kinetic power spectrum
 header_names_vel, data_x_vel, data_y_vel = loadData(directory, name_file_vel, var_x_vel, var_y_vel, bool_disp_folder, bool_disp_header)
-line_vel, = plt.plot(data_x_vel, data_y_vel, 'b--', label=r'$\mathcal{P}_{\mathregular{kin}}$')
+line_vel, = plt.plot(data_x_vel, data_y_vel, 'b', label=r'$\mathcal{P}_{\mathregular{kin}}$')
 plt.xlim(data_x_vel[0], data_x_vel[-1])
 # add legend
-ax.legend()
+ax.legend(loc='upper right', fontsize=17, frameon=False)
+## major grid
+ax.grid(which='major', linestyle='-', linewidth='0.5', color='black', alpha=0.35)
+## minor grid
+ax.grid(which='minor', linestyle='--', linewidth='0.5', color='black', alpha=0.2)
 # label plots
-plt.xlabel(r'$k$', fontsize=20)
+plt.xlabel(r'$k$',           fontsize=20)
 plt.ylabel(r'$\mathcal{P}$', fontsize=20)
+## scale axies
 ax.set_xscale('log')
 ax.set_yscale('log')
-if bool_def_limits:
+## set axis limits
+if bool_set_limits:
     line_mag.axes.set_xlim(xlim_min, xlim_max) # set x-axis limits
     line_vel.axes.set_xlim(xlim_min, xlim_max)
     line_mag.axes.set_ylim(ylim_min, ylim_max) # set y-axis limits
     line_vel.axes.set_ylim(ylim_min, ylim_max)
-# add eddy tunrover-time
-ax.text(2e-2, 3e-2, 
+## annote time (eddy tunrover-time)
+ax.text(0.5, 0.975,
         r"$t/t_{\mathregular{eddy}}$ = " + u"%0.1f"%var_time,
-        {'color': 'k', 'fontsize': 20, 'ha': 'left', 'va': 'bottom',
-        'bbox': dict(boxstyle="round", fc="w", ec="k", pad=0.2)},
-        transform=ax.transAxes)
-# save figure
+        fontsize=17,
+        ha="center", va='top', transform=ax.transAxes)
+## save figure
 if bool_save_fig:
         name_fig = (folder_main + folder_sub_vis + 'spectra_plot_ted=%0.1f'%var_time)
         name_fig = name_fig.replace(".", "p")
         plt.savefig(name_fig + '.png')
         print('\nFigure saved: ' + name_fig)
-# show plot
+## display the plot
 plt.show()
