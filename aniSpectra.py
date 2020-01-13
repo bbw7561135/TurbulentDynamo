@@ -23,8 +23,9 @@ mpl.style.use('classic')            # plot in classic style
 t_eddy = 5 # L/(2*Mach)
 # Specify where files are located and needs to be saved
 folder_main      = os.path.dirname(os.path.realpath(__file__)) # get directory_files where file is stored
-folder_sub_files = '/simDyna256/spectraFiles/' # folder where data is located
-folder_sub_vis   = '/simDyna256/visFiles/' # folder where visualisation is saved
+folder_name      = 'simDyna16_MagSpecTest'
+folder_files     = 'specFiles' # folder where data is located
+folder_vis       = 'visFiles' # folder where visualisation is saved
 bool_disp_folder = bool(0) # display all files in the directory_files
 # Specify which variables you want to plot
 var_x_mag        = 1
@@ -43,6 +44,9 @@ bool_save_ani    = bool(0)
 ##################################################################
 ## FUNCTIONS
 ##################################################################
+def fileName(names):
+    return ('/'.join(names) + '/')
+    
 def endsWithMags(element):
     return bool(element.endswith('mags.dat'))
 
@@ -67,6 +71,7 @@ def loadData(directory_files, name_file, var_x, var_y):
 # http://www.roboticslab.ca/wp-content/uploads/2012/11/robotics_lab_animation_example.txt
 def updateData(data):
     global directory_files, t_eddy
+    global file_min_num, file_max_num
     global bool_print_progress, bool_disp_limits
     global file_names_mags, data_x_mag, data_y_mag, var_x_mag, var_y_mag
     global file_names_vels, data_x_vel, data_y_vel, var_x_vel, var_y_vel
@@ -77,7 +82,7 @@ def updateData(data):
     data_x_vel, data_y_vel = loadData(directory_files, file_names_vels[var_iter], var_x_vel, var_y_vel)
     # print to terminal (to show progress of save)
     if bool_print_progress:
-        print('saving: iter=%i'%var_iter)
+        print("saving: %0.5f"%(100*var_iter/(file_max_num - file_min_num)) + '%')
     # update data fields
     line_mag.set_data(data_x_mag, data_y_mag)
     line_vel.set_data(data_x_vel, data_y_vel)
@@ -100,7 +105,7 @@ def updateData(data):
 Writer = animation.writers['ffmpeg']
 writer = Writer(fps=10)
 ## setup information for loading data
-directory_files = folder_main + folder_sub_files
+directory_files = fileName([folder_main, folder_name, folder_files])
 file_names = sorted(os.listdir(directory_files))
 file_min_mags = file_min_vels = 0
 file_max_mags = file_max_vels = 0
@@ -162,7 +167,7 @@ ani = animation.FuncAnimation(fig, updateData, updateIter,
 ## save animation
 if bool_save_ani:
     print('\nsaving animation')
-    ani_name = (folder_main + folder_sub_vis + 'ani_StirFromFileDynamoSpectra.mp4')
+    ani_name = (fileName([folder_main, folder_name, folder_vis]) + '.mp4')
     bool_print_progress = True # as the animation is saved output indicates its' progress
     ani.save(ani_name, writer=writer, dpi=512)
     bool_print_progress = False

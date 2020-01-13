@@ -1,3 +1,5 @@
+#!/usr/bin/env python2
+
 ##################################################################
 ## MODULES
 ##################################################################
@@ -41,8 +43,8 @@ nx_g                = 64   # number of cells per direction
 num_proc            = 2    # number of processors per axis (assumes same for each axis)
 ## Specify where files are located and needs to be saved
 folder_main         = os.path.dirname(os.path.realpath(__file__)) # get directory where file is saved
-folder_name         = 'dyna128_Bk10'
-folder_files        = 'Mach0p098' # folder where slice data is stored
+folder_name         = 'dyna128_Bk10/Mach0p098'
+folder_files        = '' # folder where slice data is stored
 folder_vis          = '' # folder where visualisation is saved
 ## Specify which file you want to save
 bool_print_dir      = bool(0) # display all the files stored in the directory
@@ -145,14 +147,14 @@ bool_disp_progress = False
 Writer = animation.writers['ffmpeg']
 writer = Writer(fps=10)
 ## setup information for loading data
-directory    = fileName([folder_main, folder_name, folder_files])
-stored_files = sorted(os.listdir(directory))
-file_names   = list(filter(meetCondition, stored_files))
-file_max_num = int(max(file_names)[-6:]) # number of frames in the animation
+directory       = fileName([folder_main, folder_name, folder_files])
+directory_files = sorted(os.listdir(directory))
+file_names      = list(filter(meetCondition, directory_files))
+file_max_num    = int(max(file_names)[-6:]) # number of frames in the animation
 ## display the files in the directory
 if bool_print_dir:
     print('\nFiles in directory:')
-    print('\n'.join(stored_files))
+    print('\n'.join(directory_files))
 ## display the variables stored in the file
 if bool_print_keys:
     print('\nStored keys:')
@@ -199,3 +201,6 @@ if bool_save_ani:
     ani.save(ani_name, writer=writer, dpi=512)
     bool_disp_progress = False
     print('saved animation: \n' + ani_name)
+
+
+

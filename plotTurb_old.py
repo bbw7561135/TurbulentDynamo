@@ -28,7 +28,7 @@ t_eddy   = var_L/(2*var_mach) # calculate the (large scale) eddy turnover-time
 
 ## params: locating file
 folder_main = os.path.dirname(os.path.realpath(__file__))   # get directory where file is saved
-folder_sub  = '/simDyna256/'                                   # folder where data is located
+folder_sub  = '/simTest/'                                   # folder where data is located
 
 ## params: file name
 bool_folder_contents = bool(0)
@@ -38,13 +38,13 @@ name_file = 'Turb.dat'
 bool_data_names = bool(1)
 var_x           = 0                             # time
 var_label_x     = r'$t/t_{\mathregular{eddy}}$' # x-axis label
-var_y           = 29                            # common options: 6 (E_kin), 8 (rms_Mach), 29 (E_mag)
+var_y           = 8                            # common options: 6 (E_kin), 8 (rms_Mach), 29 (E_mag)
 var_label_y     = r''                   # y-axis label
 bool_norm_dat   = bool(0)                       # normalise by initial value
 var_scale       = 'log'                      # options: linear, log
 
 # params: target eddy turnover-time to fit exponential curve to
-bool_ave        = bool(0)
+bool_ave        = bool(1)
 bool_regression = bool(0)
 t_eddy_min      = 3
 t_eddy_max      = 10
@@ -52,23 +52,6 @@ text_x          = 8 # 3.5
 text_y          = 0.08 # 1e5
 var_fontsize    = 18
 bool_save_fig   = bool(0)
-
-
-##################################################################
-## ADJUSTMENTS
-##################################################################
-# if var_y == 8:
-#     var_label_y     = r'$\mathcal{M}$'
-#     bool_norm_dat   = bool(0)
-#     bool_ave        = bool(1)
-#     bool_regression = bool(0)
-#     var_scale       = 'linear'
-# elif var_y == 29:
-#     var_label_y     = r'$E_{\mathregular{m}}/E_{\mathregular{m}0}$'
-#     bool_norm_dat   = bool(1)
-#     bool_ave        = bool(0)
-#     bool_regression = bool(1)
-#     var_scale       = 'log'
 
 ##################################################################
 ## PRINT OUT/LOAD DATA
