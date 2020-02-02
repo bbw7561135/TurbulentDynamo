@@ -15,12 +15,16 @@ from IPython import get_ipython
 ##################################################################
 ## RUNNING CURRENT SETUP
 ##################################################################
-# ./setup StirFromFileDynamo -3d -auto -objdir=objStirFromFileDynamo/ -nxb=64 -nyb=64 -nzb=64 +ug --with-unit=physics/Hydro/HydroMain/split/Bouchut/IsothermalSoundSpeedOne --without-unit=PhysicalConstants +parallelIO
+'''
+    ./setup StirFromFileDynamo -3d -auto -objdir=objStirFromFileDynamo/ -nxb=64 -nyb=64 -nzb=64 +ug --with-unit=physics/Hydro/HydroMain/split/Bouchut/IsothermalSoundSpeedOne --without-unit=PhysicalConstants +parallelIO
+'''
 
 ##################################################################
 ## COPYING FILES ACROSS (gadi -> home)
 ##################################################################
-# scp -r gadi:/scratch/ek9/nk7952/simData/ ~/Documents/University/Year4Sem2/Summer-19/ANU-Turbulence-Dynamo/simDyn256/
+'''
+    scp -r gadi:/scratch/ek9/nk7952/simData/ ~/Documents/University/Year4Sem2/Summer-19/ANU-Turbulence-Dynamo/simDyn256/
+'''
 
 ##################################################################
 ## PREPARE TERMINAL/CODE
@@ -41,9 +45,9 @@ nx_g                = 64   # number of cells per direction
 num_proc            = 2    # number of processors per axis (assumes same for each axis)
 ## Specify where files are located and needs to be saved
 folder_main         = os.path.dirname(os.path.realpath(__file__)) # get directory where file is saved
-folder_name         = 'dyna128_Bk10'
-folder_files        = 'Mach0p098' # folder where slice data is stored
-folder_vis          = '' # folder where visualisation is saved
+folder_name         = 'dyna256_Bk100'
+folder_files        = 'sliceFiles' # folder where slice data is stored
+folder_vis          = 'visFiles' # folder where visualisation is saved
 ## Specify which file you want to save
 bool_print_dir      = bool(0) # display all the files stored in the directory
 name_file           = 'Turb_slice_xy_' # string that the data files start with
@@ -52,15 +56,55 @@ bool_print_keys     = bool(0) # display all the variables stored in the data
 var_norm            = 1e-10
 name_var            = 'mag' # data-field name
 var_label           = r'$B/B_{0}$'
-col_map_min         = 1.10e-05
-col_map_max         = 2.57e+06
+col_map_min         = 5.78e-11
+col_map_max         = 7.17e+08
 bool_repeat_ani     = bool(0) # loop the animation?
 ## Should the animation be saved?
-bool_save_ani       = bool(0) # save the animation?
+bool_save_ani       = bool(1) # save the animation?
 
 ##################################################################
 ## FUNCTIONS
 ##################################################################
+def createFilePath(names):
+    return ('/'.join(names) + '/')
+
+def meetCondition(element):
+    global name_file
+    return bool(element.startswith(name_file)) # and not(int(element[-6:]) % 10)
+
+def loadData(var_directory, var_names, var_iter, var_dim):
+    global var_norm, t_eddy
+    f = h5py.File(var_directory + '/' + var_names[var_iter], 'r') # load the file
+    name_vars = [s for s in list(f.keys()) if name_var in s] # store all the strings that contain the chars: name_var
+    var_cons  = sum(np.array(f[name])**2 for name in name_vars)/var_norm # calculate the magnitude (consentration) of vector comps (name_var)
+    var_time  = np.array(f['time'])/t_eddy # load time points
+    f.close() # close the file stream
+    if var_dim == "2D":
+        var_cons = reformatField(var_cons, nx=nx_g, procs=num_proc, dim="2D")
+    return var_cons, var_time
+
+def updateIter():
+    global file_max_num
+    var_iter = -1
+    while var_iter < file_max_num:
+        # update iter
+        var_iter += 1
+        yield var_iter
+
+def updateFig(data):
+    global bool_disp_progress, var_abs_min, var_abs_max, file_max_num
+    var_iter = data
+    # calculate new data
+    var_cons, var_time = loadData(var_directory=directory, var_names=file_names, var_iter=var_iter, var_dim='3D')
+    # var_abs_min = min(var_abs_min, min(map(min, var_cons)))
+    # var_abs_max = max(var_abs_max, max(map(max, var_cons)))
+    if bool_disp_progress:
+        print(u"saving: %0.5f"%(100 * var_iter/file_max_num) + '%')
+    # update data
+    im.set_data(var_cons)
+    title.set_text(r"$t/t_{\mathregular{eddy}} = $" + u"%0.1f"%(var_time))
+    return im, title,
+
 def reformatField(field, nx=None, procs=None, dim="3D"):
     """
     Author: James Beattie (26 November 2019)
@@ -96,46 +140,6 @@ def reformatField(field, nx=None, procs=None, dim="3D"):
                 field_sorted[k*nzb:(k+1)*nzb, i*nxb:(i+1)*nxb, j*nyb:(j+1)*nyb] = field[k + j*iprocs + i*(jprocs*iprocs)]
     return field_sorted
 
-def fileName(names):
-    return ('/'.join(names) + '/')
-
-def loadData(var_directory, var_names, var_iter, var_dim):
-    global var_norm, t_eddy
-    f = h5py.File(var_directory + '/' + var_names[var_iter], 'r') # load the file
-    name_vars = [s for s in list(f.keys()) if name_var in s] # store all the strings that contain the chars: name_var
-    var_cons  = sum(np.array(f[name])**2 for name in name_vars)/var_norm # calculate the magnitude (consentration) of vector comps (name_var)
-    var_time  = np.array(f['time'])/t_eddy # load time points
-    f.close() # close the file stream
-    if var_dim == "2D":
-        var_cons = reformatField(var_cons, nx=nx_g, procs=num_proc, dim="2D")
-    return var_cons, var_time
-
-def updateIter():
-    global file_max_num
-    var_iter = -1
-    while var_iter < file_max_num:
-        # update iter
-        var_iter += 1
-        yield var_iter
-
-def updateFig(data):
-    global bool_disp_progress, var_abs_min, var_abs_max, file_max_num
-    var_iter = data
-    # calculate new data
-    var_cons, var_time = loadData(var_directory=directory, var_names=file_names, var_iter=var_iter, var_dim='3D')
-    var_abs_min = min(var_abs_min, min(map(min, var_cons)))
-    var_abs_max = max(var_abs_max, max(map(max, var_cons)))
-    if bool_disp_progress:
-        print(u"saving: %0.5f"%(100 * var_iter/file_max_num) + '%')
-    # update data
-    im.set_data(var_cons)
-    title.set_text(r"$t/t_{\mathregular{eddy}} = $" + u"%0.1f"%(var_time))
-    return im, title,
-
-def meetCondition(element):
-    global name_file
-    return bool(element.startswith(name_file))
-
 ##################################################################
 ## PLOTTING CODE
 ##################################################################
@@ -145,10 +149,10 @@ bool_disp_progress = False
 Writer = animation.writers['ffmpeg']
 writer = Writer(fps=10)
 ## setup information for loading data
-directory    = fileName([folder_main, folder_name, folder_files])
+directory    = createFilePath([folder_main, folder_name, folder_files])
 stored_files = sorted(os.listdir(directory))
 file_names   = list(filter(meetCondition, stored_files))
-file_max_num = int(max(file_names)[-6:]) # number of frames in the animation
+file_max_num = len(file_names) - 1 # number of frames in the animation
 ## display the files in the directory
 if bool_print_dir:
     print('\nFiles in directory:')
@@ -170,32 +174,40 @@ im  = plt.imshow(var_cons,
             cmap='plasma',
             norm=LogNorm(),
             animated=True)
-title = ax.text(0.05, 0.95,
+title = ax.text(0.5, 0.95,
             r"$t/t_{\mathregular{eddy}} = $" + u"{}".format(0), 
-            fontsize=17, color='black', path_effects=[path_effects.withSimplePatchShadow(offset=(1, -1))],
-            ha="left", va='top', transform=ax.transAxes)
+            fontsize=20, color='black', 
+            # path_effects=[path_effects.withSimplePatchShadow(offset=(1, -1))],
+            ha="center", va='top', transform=ax.transAxes)
 ## label the plot
 cbar = plt.colorbar(label=var_label) # colour bar
+ax   = cbar.ax
+text = ax.yaxis.label
+font = mpl.font_manager.FontProperties(family='times new roman', style='italic', size=18)
+text.set_font_properties(font)
+cbar.ax.tick_params(labelsize=13)
 plt.clim(col_map_min, col_map_max) # set the colour bar limits
 plt.xlim([0.0,1.0]); plt.ylim([0.0,1.0]) # set the x,y-limits
 plt.xticks([0.0,0.5,1.0]); plt.yticks([0.0,0.5,1.0]) # specify marker points
-plt.xticks([0.0,0.5,1.0], [r'$0$', r'$L/2$', r'$L$'], fontsize=17) # label the marker points
-plt.yticks([0.0,0.5,1.0], [r'$0$', r'$L/2$', r'$L$'], fontsize=17)
+plt.xticks([0.0,0.5,1.0], [r'$0$', r'$L/2$', r'$L$'], fontsize=20) # label the marker points
+plt.yticks([0.0,0.5,1.0], [r'$0$', r'$L/2$', r'$L$'], fontsize=20)
 plt.minorticks_on()
 ## animate the slice evolution
-# interval:     draw new frame every 'interval' ms
-# save_count:   number of frames to draw
+# blit: only update portion of frame that has changed
+# interval: draw new frame every 'interval' ms
+# save_count: number of frames to draw
 # https://stackoverflow.com/questions/44594887/how-to-update-plot-title-with-matplotlib-using-animation
-ani = animation.FuncAnimation(fig, updateFig, updateIter, interval=1, save_count=file_max_num, repeat=bool_repeat_ani)
+ani = animation.FuncAnimation(fig, updateFig, updateIter, 
+                blit = False, interval=5, save_count=file_max_num, repeat=bool_repeat_ani)
 ## display the animation
 plt.show()
 ## display the y-domain limits
-print('set colour-bar: \tmin=%0.2e'%var_abs_min + '\tmax=%0.2e'%var_abs_max)
+print('colour range: \tmin=%0.2e'%var_abs_min + '\tmax=%0.2e'%var_abs_max)
 ## save plot
 if bool_save_ani:
     print('\nsaving animation')
     bool_disp_progress = True
-    ani_name = (fileName([folder_main, folder_name, folder_vis]) + name_var + '.mp4')
+    ani_name = (createFilePath([folder_main, folder_name, folder_vis]) + 'ani_' + folder_name + '_' + name_var + '.mp4')
     ani.save(ani_name, writer=writer, dpi=512)
     bool_disp_progress = False
     print('saved animation: \n' + ani_name)
