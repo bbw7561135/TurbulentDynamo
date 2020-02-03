@@ -22,7 +22,7 @@ plt.rc('font', family='serif')      # specify font choice
 ##################################################################
 ## USER VARIABLES
 ##################################################################
-t_eddy = 10 # L/(2*Mach)
+t_eddy           = 10 # number of spectra files per eddy turnover
 # Specify where files are located and needs to be saved
 folder_main      = os.path.dirname(os.path.realpath(__file__)) # get directory_files where file is stored
 folder_name      = 'dyna288_Bk10'
@@ -40,7 +40,7 @@ xlim_max         = 1.3e+02
 ylim_min         = 1e-25
 ylim_max         = 4.2e-03
 ## Should the animation be saved?
-bool_save_ani    = bool(1)
+bool_save_ani    = bool(0)
 
 ##################################################################
 ## FUNCTIONS

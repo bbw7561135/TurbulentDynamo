@@ -19,7 +19,7 @@ mpl.style.use('classic')            # plot in classic style
 ##################################################################
 ## USER DEFINED VARIABLES
 ##################################################################
-t_eddy  = 5 # L/(2*Mach)
+t_eddy           = 5 # L/(2*Mach)
 ## specify where files are located and needs to be saved
 folder_main      = os.path.dirname(os.path.realpath(__file__)) # get directory where file is stored
 folder_name      = 'dyna288_Bk10' # folder where data Turb.dat is located
@@ -27,22 +27,16 @@ folder_vis       = 'visFiles' # folder where visualisation should be saved
 bool_disp_folder = bool(0) # display all files that end with: name_file_*
 bool_disp_header = bool(1) # display all the header names stored in Turb.dat
 ## 6 (E_kin), 8 (rms_Mach), 29 (E_mag)
-var_y            = 8 # y-axis variable
+var_y            = 6 # y-axis variable
 label_y          = r''
 anotate_y        = r''
-## set the figure's axis-limits
-bool_set_lim     = bool(0)
-xlim_min         = 3
-xlim_max         = 9
-ylim_min         = 1.0e-16
-ylim_max         = 4.2e-03
 var_scale        = ''
 ## set x-range for regression and averaging
-x_min            = 3
-x_max            = 5.7
+x_min            = 3.2
+x_max            = 6
 ## extra plotting features
 bool_norm_dat    = bool(0) # normalise y-axis data
-bool_ave         = bool(1) # plot average of data over specified x-range
+bool_ave         = bool(0) # plot average of data over specified x-range
 bool_regression  = bool(0) # plot regression line for data over specified x-range
 ## should the plot be saved?
 bool_save_fig    = bool(0)
@@ -152,10 +146,6 @@ if bool_ave:
 ax.grid(which='major', linestyle='-', linewidth='0.5', color='black', alpha=0.35)
 ## minor grid
 ax.grid(which='minor', linestyle='--', linewidth='0.5', color='black', alpha=0.2)
-## set axis limits
-if bool_set_lim:
-    plt.xlim(xlim_min, xlim_max)
-    plt.ylim(ylim_min, ylim_max)
 ## label plot
 plt.xlabel(label_x, fontsize=20)
 plt.ylabel(label_y, fontsize=20)

@@ -19,8 +19,8 @@ mpl.style.use('classic')            # plot in classic style
 ##################################################################
 ## USER DEFINED VARIABLES
 ##################################################################
-global t_eddy, bool_disp_header
-t_eddy  = 5 # L/(2*Mach)
+global t_eddy, bool_disp_header, var_y
+t_eddy           = 5 # L/(2*Mach)
 ## specify where files are located and needs to be saved
 folder_main      = os.path.dirname(os.path.realpath(__file__)) # get directory where file is stored
 folder_name_1    = 'dyna288_Bk10' # first plot's data
@@ -30,15 +30,9 @@ label_2          = r'$k_{B} = 100$'
 name_fig         = folder_main + '/turb_dyna288_'
 bool_disp_header = bool(1) # display all the header names stored in Turb.dat
 var_y            = 29 # y-axis variable: 6 (E_kin), 8 (rms_Mach), 29 (E_mag)
-## set the figure's axis-limits
-bool_set_lim     = bool(0)
-xlim_min         = 3
-xlim_max         = 9
-ylim_min         = 1.0e-16
-ylim_max         = 4.2e-03
 var_scale        = ''
 ## should the plot be saved?
-bool_save_fig    = bool(1)
+bool_save_fig    = bool(0)
 
 ##################################################################
 ## AUTOMATIC ADJUSTMENTS
@@ -65,8 +59,8 @@ elif var_y == 29:
 def createFilePath(names):
     return ('/'.join(names) + '/')
 
-def loadData(directory, var_x, var_y):
-    global t_eddy, bool_disp_header, bool_norm_dat
+def loadData(directory):
+    global t_eddy, bool_disp_header, bool_norm_dat, var_x, var_y
     ## load data
     data_split = [x.split() for x in open(directory).readlines()]
     ## show the header file
@@ -97,14 +91,15 @@ directory_2 = createFilePath([folder_main, folder_name_2]) + 'Turb.dat'
 fig = plt.figure(figsize=(10, 7), dpi=100)
 ax  = fig.add_subplot()
 ## define x-variable
+global var_x
 var_x   = 0
 label_x = r'$t/t_{\mathregular{eddy}}$'
 
 ##################################################################
 ## LOADING DATA
 ##################################################################
-data_x_1, data_y_1, var_name = loadData(directory_1, var_x, var_y)
-data_x_2, data_y_2, var_name = loadData(directory_2, var_x, var_y)
+data_x_1, data_y_1, var_name = loadData(directory_1)
+data_x_2, data_y_2, var_name = loadData(directory_2)
 
 ##################################################################
 ## PLOTTING DATA
@@ -121,10 +116,6 @@ ax.legend(loc='lower right', fontsize=17, frameon=False)
 ax.grid(which='major', linestyle='-', linewidth='0.5', color='black', alpha=0.35)
 ## minor grid
 ax.grid(which='minor', linestyle='--', linewidth='0.5', color='black', alpha=0.2)
-## set axis limits
-if bool_set_lim:
-    plt.xlim(xlim_min, xlim_max)
-    plt.ylim(ylim_min, ylim_max)
 ## label plot
 plt.xlabel(label_x, fontsize=20)
 plt.ylabel(label_y, fontsize=20)
