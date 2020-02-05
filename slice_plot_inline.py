@@ -3,7 +3,7 @@
 ''' AUTHOR: Neco Kriel
     
     EXAMPLE: 
-    slice_plot_inline.py -num_files 100 -num_proc 4 -pre_name Bk10 -filepath /Users/dukekriel/Documents/University/Year4Sem2/Summer-19/ANU-Turbulence-Dynamo/dyna288_Bk10
+    slice_plot_inline.py -num_files 100 -num_proc 4 -pre_name Bk10 -base_path /Users/dukekriel/Documents/University/Year4Sem2/Summer-19/ANU-Turbulence-Dynamo/dyna288_Bk10
 
     OTHER: 
     Compiling flash4 command:
@@ -34,35 +34,48 @@ data_queue = mp.Queue()
 ##################################################################
 ## INPUT COMMAND LINE ARGUMENTS
 ##################################################################
-global file_max, debug_mode, num_proc
-ap = argparse.ArgumentParser(description = 'A bunch of input arguments')
-## optional arguments
-ap.add_argument('-debug',     required=False,   help='Debug mode',                  type=bool, default=False)
-ap.add_argument('-num_files', required=False,   help='Number of files to process',  type=int,  default=-1)
-ap.add_argument('-start',     required=False,   help='Start frame number',          type=str,  default='0')
-ap.add_argument('-fps',       required=False,   help='Animation frame rate',        type=str,  default='40')
-## required arguments
-ap.add_argument('-filepath',  required=True,    help='File path to data',           type=str)
-ap.add_argument('-pre_name',  required=True,    help='Name of figures',             type=str)
-ap.add_argument('-num_proc',  required=True,    help='Number of processors',        type=int)
+global file_max, bool_debug_mode, num_proc
+ap = argparse.ArgumentParser(description='A bunch of input arguments')
+## ------------------- OPTIONAL ARGUMENTS
+ap.add_argument('-debug', required=False, help='Debug mode', type=bool, default=False)
+ap.add_argument('-ani_only', required=False, help='Debug mode', type=bool, default=False)
+ap.add_argument('-num_files', required=False, help='Number of files to process', type=int, default=-1)
+ap.add_argument('-start', required=False, help='Start frame number', type=str, default='0')
+ap.add_argument('-fps', required=False, help='Animation frame rate', type=str, default='40')
+## ------------------- REQUIRED ARGUMENTS
+ap.add_argument('-base_path', required=True, help='File path to data', type=str)
+ap.add_argument('-vis_folder', required=True, help='Folder name of where plots should be saved', type=str)
+ap.add_argument('-pre_name', required=True, help='Name of figures', type=str)
+ap.add_argument('-num_proc', required=True, help='Number of processors', type=int)
 ## save arguments
 args = vars(ap.parse_args())
+## ------------------- BOOLEANS
 ## enable/disable debug mode
 if (args['debug'] == True):
-    debug_mode = True
+    bool_debug_mode = True
 else:
-    debug_mode = False
+    bool_debug_mode = False
+## enable/disable animating only mode
+if (args['ani_only'] == True):
+    bool_ani_only_mode = True
+else:
+    bool_ani_only_mode = False
+## ------------------- ANIMATION PARAMETERS
+ani_start     = args['start'] # starting animation frame
+ani_fps       = args['fps']   # animation's fps
 ## the number of plots to process
 if (args['num_files'] < 0):
     file_max = np.Inf
 else:
     file_max = args['num_files']
-## save required arguments
-ani_start     = args['start']    # starting animation frame
-ani_fps       = args['fps']      # animation's fps
-filepath_base = args['filepath'] # home directory of data
-pre_name      = args['pre_name'] # name attached to the front of figures and animation
-num_proc      = args['num_proc'] # number of processors
+## ------------------- FILEPATH PARAMETERS
+filepath_base = args['base_path']  # home directory of data
+folder_vis    = args['vis_folder'] # subfolder where animation and plots will be saved
+pre_name      = args['pre_name']   # name attached to the front of figures and animation
+num_proc      = args['num_proc']   # number of processors
+## remove the trailing '/' from the input filepath
+if filepath_base.endswith('/'):
+    filepath_base = filepath_base[:-1]
 ## start code
 print("Began running the slice code in folder: \n\t" + filepath_base)
 print(' ')
@@ -77,9 +90,6 @@ t_eddy      = 5 # L/(2*Mach)
 plasma_beta = 1e-10
 ## define the directory
 global name_fig, name_vid
-folder_data = 'sliceFiles'      # subfolder where the slice data is stored 
-folder_vis  = 'visFiles'        # subfolder where the animation will be saved
-folder_save = 'plotSlices'      # subsubfolder where the intermediate figures will be saved
 name_fig    = pre_name + '_plot_slice_mag_'
 name_vid    = pre_name + '_ani_mag'
 
@@ -102,8 +112,8 @@ def createFilePath(paths):
     return ('/'.join(paths) + '/')
 
 def meetCondition(element):
-    global debug_mode, file_max
-    if debug_mode:
+    global bool_debug_mode, file_max
+    if bool_debug_mode:
         return bool(element.startswith('Turb_slice_xy_') and (int(element[-6:]) <= 5))
     elif file_max != np.Inf:
         return bool(element.startswith('Turb_slice_xy_') and (int(element[-6:]) <= file_max))
@@ -111,7 +121,6 @@ def meetCondition(element):
         return bool(element.startswith('Turb_slice_xy_'))
 
 def calcMinMax():
-    global debug_mode
     global filepath_data, file_names, num_figs
     global t_eddy, plasma_beta
     var_min = np.nan
@@ -195,13 +204,13 @@ def parPlot():
     print(' ')
 
 def worker(var_iter):
-    global debug_mode
+    global bool_debug_mode
     global filepath_data, file_names
     global t_eddy, plasma_beta
     file_name  = filepath_data + '/' + file_names[var_iter] # create the filepath to the file
     f          = h5py.File(file_name, 'r')                  # load slice file
     time_point = np.array(f['time']) / t_eddy               # save time point
-    if debug_mode:
+    if bool_debug_mode:
         print('Looking at:' + file_name)
     names      = [s for s in list(f.keys()) if 'mag' in s]  # save all keys that contain 'mag'
     data       = sum(np.array(f[i])**2 for i in names)      # determine the magnetic-field magnitude
@@ -243,15 +252,15 @@ def reformatField(field, nx=None, procs=None):
 ## SETUP VARIABLES
 ##################################################################
 ## announce debug status
-if debug_mode:
+if bool_debug_mode:
     print('--------- Debug mode is on. -----------------------------------')
     print(' ')
 # initialise filepaths
 global filepath_data, filepath_plot
 global file_names, num_figs
-filepath_data = createFilePath([filepath_base, folder_data]) # where data is stored
-filepath_plot = createFilePath([filepath_base, folder_vis, folder_save]) # where plots will be saved
-if debug_mode:
+filepath_data = createFilePath([filepath_base, 'sliceFiles']) # where data is stored
+filepath_plot = createFilePath([filepath_base, folder_vis, 'plotSlices']) # where plots will be saved
+if bool_debug_mode:
     print('--------- Debug: Check directories -----------------------------------')
     print('The base directory is:\n\t' + filepath_base)
     print('The directory to the slice data is:\n\t' + filepath_data)
@@ -269,21 +278,23 @@ print(' ')
 ##################################################################
 ## CALCULATE MIN and MAX VALS (for colour-map)
 ##################################################################
-print('Calculating the colour-map domain...')
-col_map_min, col_map_max = calcMinMax()
-print('The colour-map domain:')
-print('\tMin: ' + str(col_map_min))
-print('\tMax: ' + str(col_map_max))
-print(' ')
+if not(bool_ani_only_mode):
+    print('Calculating the colour-map domain...')
+    col_map_min, col_map_max = calcMinMax()
+    print('The colour-map domain:')
+    print('\tMin: ' + str(col_map_min))
+    print('\tMax: ' + str(col_map_max))
+    print(' ')
 
 ##################################################################
 ## PROCESS DATA and SAVE IMAGES
 ##################################################################
-print('Processing and plotting data...')
-print(' ')
-parPlot()
-print('Finished processing data.')
-print(' ')
+if not(bool_ani_only_mode):
+    print('Processing and plotting data...')
+    print(' ')
+    parPlot()
+    print('Finished processing data.')
+    print(' ')
 
 ##################################################################
 ## ANIMATE IMAGES
@@ -294,7 +305,7 @@ ffmpeg_input    = ('ffmpeg -start_number '          + ani_start +
                 ' -i '                              + filepath_input + 
                 ' -vb 40M -framerate '              + ani_fps + 
                 ' -vf scale=1440:-1 -vcodec mpeg4 ' + filepath_output)
-if debug_mode:
+if bool_debug_mode:
     print('--------- Debug: Check FFMPEG input -----------------------------------')
     print('Input: ' + filepath_input)
     print(' ')

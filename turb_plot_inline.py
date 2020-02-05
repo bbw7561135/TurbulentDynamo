@@ -3,7 +3,7 @@
 ''' AUTHOR: Neco Kriel
     
     EXAMPLE: 
-    turb_dPlot_inline.py -base_path /Users/dukekriel/Documents/University/Year4Sem2/Summer-19/ANU-Turbulence-Dynamo -dat_folder1 dyna288_Bk10 -dat_folder2 dyna288_Bk100 -vis_folder testPlots -fig_name dyna288
+    turb_plot_inline.py -base_path /Users/dukekriel/Documents/University/Year4Sem2/Summer-19/ANU-Turbulence-Dynamo/dyna288_Bk10 -vis_folder visFiles -fig_name dyna288_Bk10
 '''
 
 ##################################################################
@@ -29,10 +29,10 @@ global bool_debug_mode, filepath_base
 ap = argparse.ArgumentParser(description='A bunch of input arguments')
 ## ------------------- OPTIONAL ARGUMENTS
 ap.add_argument('-debug', required=False, help='Debug mode', type=bool, default=False)
+ap.add_argument('-xmin', required=False, help='Minimum x value which analysis is performed', type=float, default=3.2)
+ap.add_argument('-xmax', required=False, help='Maximum x value which analysis is performed', type=float, default=6)
 ## ------------------- REQUIRED ARGUMENTS
 ap.add_argument('-base_path', required=True, help='Filepath to the base folder', type=str)
-ap.add_argument('-dat_folder1', required=True, help='Name of the first folder', type=str)
-ap.add_argument('-dat_folder2', required=True, help='Name of the second folder', type=str)
 ap.add_argument('-vis_folder', required=True, help='Name of the folder where the figures will be saved', type=str)
 ap.add_argument('-fig_name', required=True, help='Name of figures', type=str)
 ## save arguments
@@ -45,17 +45,16 @@ else:
     bool_debug_mode = False
 ## ------------------- FILEPATH PARAMETERS
 filepath_base = args['base_path']   # home directory
-folder_data_1 = args['dat_folder1'] # first subfolder's fig_name
-folder_data_2 = args['dat_folder2'] # second subfolder's fig_name
 folder_plot   = args['vis_folder']  # subfolder where animation and plots will be saved
 fig_name      = args['fig_name']    # fig_name of figures
 ## remove the trailing '/' from the input filepath
 if filepath_base.endswith('/'):
     filepath_base = filepath_base[:-1]
+## ------------------- ANALYSIS DOMAIN
+x_min = args['xmin']
+x_max = args['xmax']
 ## start code
 print('Began running the spectra plotting code in the filepath: \n\t' + filepath_base)
-print('Data folder 1: ' + folder_data_1)
-print('Data folder 2: ' + folder_data_2)
 print('Visualising folder: ' + folder_plot)
 print(' ')
 
@@ -84,8 +83,8 @@ def loadData(directory):
     data_x = []
     data_y = []
     for row in data_split[1:]:
-        if len(row) == len_thresh:
-            if ((row[var_x][0] == '#') or (row[var_y][0] == '#')):
+        if len(row)  == len_thresh:
+            if ((row[var_x][0]  == '#') or (row[var_y][0]  == '#')):
                 break
             data_x.append(float(row[var_x]) / t_eddy) # normalise time-domain
             data_y.append(float(row[var_y]))
@@ -98,13 +97,12 @@ def loadData(directory):
 ##################################################################
 ## DEFINE PLOTTING VARIABLES
 ##################################################################
-global t_eddy, var_x, var_y, bool_norm_dat
+global bool_norm_dat
+global t_eddy, var_x, var_y
 ## constants
 t_eddy           = 5 # L/(2*Mach)
 var_x            = 0
 label_x          = r'$t/t_{\mathregular{eddy}}$'
-label_data_1     = r'$k_{B} = 10$'
-label_data_2     = r'$k_{B} = 100$'
 ## accept input for the y-axis variable
 print('Which variable do you want to plot on the y-axis?')
 print('\tOptions: 6 (E_kin), 8 (rms_Mach), 29 (E_mag)')
@@ -116,61 +114,96 @@ print(' ')
 ## initialise variables
 var_scale        = ''
 label_y          = r''
-if var_y == 6:
-    ## mach number
+bool_ave         = bool(0) # plot average of data over specified x-range
+bool_regression  = bool(0) # plot regression line for data over specified x-range
+if var_y  == 6:
+    ## kinetic field
     label_y       = r'$E_{\nu}/E_{\nu 0}$'
     bool_norm_dat = bool(1)
     var_scale     = 'log'
-elif var_y == 8:
+elif var_y  == 8:
     ## mach number
     label_y       = r'$\mathcal{M}$'
     bool_norm_dat = bool(0)
+    bool_ave      = bool(1)
     var_scale     = 'linear'
 else:
     ## magnetic field
     label_y       = r'$E_{B}/E_{B 0}$'
     bool_norm_dat = bool(1)
+    bool_regression = bool(1)
     var_scale     = 'log'
 
 ##################################################################
 ## INITIALISING VARIABLES
 ##################################################################
-filepath_data_1 = createFilePath([filepath_base, folder_data_1]) + 'Turb.dat'
-filepath_data_2 = createFilePath([filepath_base, folder_data_2]) + 'Turb.dat'
-filepath_plot   = createFilePath([filepath_base, folder_plot])
+filepath_data = filepath_base + '/Turb.dat'
+filepath_plot = createFilePath([filepath_base, folder_plot])
 ## create folder where the figure will be saved
 createFolder(filepath_plot)
 ## open figure
-fig = plt.figure(figsize=(10, 7), dpi=100)
+fig = plt.figure(figsize = (10, 7), dpi = 100)
 ax  = fig.add_subplot()
 
 ##################################################################
 ## LOADING DATA
 ##################################################################
 print('Loading data...')
-data_x_1, data_y_1, var_name = loadData(filepath_data_1)
-data_x_2, data_y_2, var_name = loadData(filepath_data_2)
+data_x, data_y, var_name = loadData(filepath_data)
+## save analysis data
+index_min = min(enumerate(data_x), key = lambda x: abs(x_min - x[1]))[0]
+index_max = min(enumerate(data_x), key = lambda x: abs(x_max - x[1]))[0]
+fit_x     = list(map(float, data_x[index_min:index_max]))
+fit_y     = list(map(float, data_y[index_min:index_max]))
 
 ##################################################################
 ## PLOTTING DATA
 ##################################################################
 print('Plotting data...')
-plt.plot(data_x_1, data_y_1, 'k', label=label_data_1)
-plt.plot(data_x_2, data_y_2, 'b', label=label_data_2)
+plt.plot(data_x, data_y, 'k')
+
+##################################################################
+## ADD REGRESSION / AVERAGING
+##################################################################
+## plot regression analysis
+if bool_regression:
+    log_y = np.log(fit_y)
+    m, c  = np.polyfit(fit_x, log_y, 1)    # fit log(y) = m*log(x) + c
+    fit_y = np.exp([m*x + c for x in fit_x]) # calculate the fitted values of y 
+    plt.plot(fit_x, fit_y, 'k--', linewidth = 1)
+    ax.text(0.75, 0.23,
+        r"$m = %0.1f$"%m,
+        fontsize = 20, color = 'black', 
+        ha = "left", va = 'top', transform = ax.transAxes)
+    ax.text(0.75, 0.15,
+        r"$c = %0.1f$"%c,
+        fontsize = 20, color = 'black', 
+        ha = "left", va = 'top', transform = ax.transAxes)
+## plot average analysis
+if bool_ave:
+    var_dt    = np.diff(fit_x)
+    var_ave_y = [(prev+cur)/2 for prev, cur in zip(fit_y[:-1], fit_y[1:])]
+    ave_y     = sum(var_ave_y * var_dt) / (x_max - x_min)
+    fit_y     = np.repeat(ave_y, len(fit_y))
+    ax.text(0.5, 0.25,
+        r"$\langle %s \rangle \pm 1\sigma = $"%label_y.replace('$', '') +
+        r"$%0.2f$"%ave_y + 
+        r" $\pm$ " +
+        r"$%0.1g$"%np.sqrt(np.var(data_y)),
+        fontsize = 20, color = 'black', 
+        ha = "left", va = 'top', transform = ax.transAxes)
 
 ##################################################################
 ## LABEL and ADJUST PLOT
 ##################################################################
 print('Labelling plot...')
-# add legend
-ax.legend(loc='lower right', fontsize=17, frameon=False)
 ## major grid
-ax.grid(which='major', linestyle='-', linewidth='0.5', color='black', alpha=0.35)
+ax.grid(which = 'major', linestyle = '-', linewidth = '0.5', color = 'black', alpha = 0.35)
 ## minor grid
-ax.grid(which='minor', linestyle='--', linewidth='0.5', color='black', alpha=0.2)
+ax.grid(which = 'minor', linestyle = '--', linewidth = '0.5', color = 'black', alpha = 0.2)
 ## label plot
-plt.xlabel(label_x, fontsize=20)
-plt.ylabel(label_y, fontsize=20)
+plt.xlabel(label_x, fontsize = 20)
+plt.ylabel(label_y, fontsize = 20)
 ## scale y-axis
 ax.set_yscale(var_scale)
 
@@ -178,7 +211,7 @@ ax.set_yscale(var_scale)
 ## SAVE IMAGE
 ##################################################################
 print('Saving the figure...')
-name_fig = filepath_plot + 'turb_dyna288_' + var_name + '.png'
+name_fig = filepath_plot + 'turb_' + fig_name + '_' + var_name + '.png'
 plt.savefig(name_fig)
 print('Figure saved: ' + name_fig)
 

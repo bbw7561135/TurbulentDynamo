@@ -3,7 +3,7 @@
 ''' AUTHOR: Neco Kriel
 
     EXAMPLE: 
-    spectra_dPlot_inline.py -base_path /Users/dukekriel/Documents/University/Year4Sem2/Summer-19/ANU-Turbulence-Dynamo -dat_folder1 dyna288_Bk10 -dat_folder2 dyna288_Bk100 -vis_folder testPlots -fig_name dyna288
+    spectra_plot_inline.py -base_path /Users/dukekriel/Documents/University/Year4Sem2/Summer-19/ANU-Turbulence-Dynamo/dyna288_Bk10 -vis_folder visFiles -fig_name dyna288_Bk10
 '''
 
 ##################################################################
@@ -31,11 +31,9 @@ ap = argparse.ArgumentParser(description='A bunch of input arguments')
 ap.add_argument('-debug', required=False, help='Debug mode', type=bool, default=False)
 ap.add_argument('-num_files', required=False, help='Number of files to process', type=int, default=-1)
 ap.add_argument('-start', required=False, help='Start frame number', type=str, default='0')
-ap.add_argument('-fps', required=False, help='Animation frame rate', type=str, default='40')
+ap.add_argument('-fps',  required=False, help='Animation frame rate',  type=str, default='40')
 ## ------------------- REQUIRED ARGUMENTS
 ap.add_argument('-base_path', required=True, help='Filepath to the base folder', type=str)
-ap.add_argument('-dat_folder1', required=True, help='Name of the first folder', type=str)
-ap.add_argument('-dat_folder2', required=True, help='Name of the second folder', type=str)
 ap.add_argument('-vis_folder', required=True, help='Name of the folder where the figures will be saved', type=str)
 ap.add_argument('-fig_name', required=True, help='Name of figures', type=str)
 ## save arguments
@@ -57,8 +55,6 @@ else:
     file_max = args['num_files']
 ## ------------------- FILEPATH PARAMETERS
 filepath_base = args['base_path']   # home directory
-folder_data_1 = args['dat_folder1'] # first subfolder's name
-folder_data_2 = args['dat_folder2'] # second subfolder's name
 folder_vis    = args['vis_folder']  # subfolder where animation and plots will be saved
 fig_name      = args['fig_name']    # name of figures
 ## remove the trailing '/' from the input filepath
@@ -66,8 +62,6 @@ if filepath_base.endswith('/'):
     filepath_base = filepath_base[:-1]
 ## start code
 print('Began running the spectra plotting code in base filepath: \n\t' + filepath_base)
-print('Data folder 1: ' + folder_data_1)
-print('Data folder 2: ' + folder_data_2)
 print('Visualising folder: ' + folder_vis)
 print(' ')
 
@@ -75,17 +69,12 @@ print(' ')
 ## USER VARIABLES
 ##################################################################
 t_eddy = 10 # number of spectra files per eddy turnover # TODO: input?
-## specify where files are located and needs to be saved
-## first plot's information
-label_1_kin = r'$\mathcal{P}_{k_{B}=10, \mathregular{kin}}$'
-label_1_mag = r'$\mathcal{P}_{k_{B}=10, \mathregular{mag}}$'
-## second plot's information
-label_2_kin = r'$\mathcal{P}_{k_{B}=100, \mathregular{kin}}$'
-label_2_mag = r'$\mathcal{P}_{k_{B}=100, \mathregular{mag}}$'
 ## specify which variables you want to plot
 global var_x, var_y
 var_x = 1  # variable: wave number (k)
 var_y = 15 # variable: power spectrum
+label_kin = r'$\mathcal{P}_{k_{B}=10, \mathregular{kin}}$'
+label_mag = r'$\mathcal{P}_{k_{B}=10, \mathregular{mag}}$'
 ## set the figure's axis limits
 xlim_min = 1.0
 xlim_max = 1.3e+02
@@ -146,12 +135,9 @@ def loadData(directory):
 ##################################################################
 ## INITIALISING VARIABLES
 ##################################################################
-filepath_data_1 = createFilePath([filepath_base, folder_data_1, 'spectFiles']) # first folder with data
-filepath_data_2 = createFilePath([filepath_base, folder_data_2, 'spectFiles']) # second folder with data
+filepath_data = createFilePath([filepath_base, 'spectFiles'])
 filepath_plot   = createFilePath([filepath_base, folder_vis, 'plotSpectra']) # folder where plots will be saved
-file_names_1, num_figs_1 = setupInfo(filepath_data_1)
-file_names_2, num_figs_2 = setupInfo(filepath_data_2)
-num_figs = min(num_figs_1, num_figs_2)
+file_names, num_figs = setupInfo(filepath_data)
 createFolder(filepath_plot) # create folder where plots are saved
 
 for var_iter in range(num_figs):
@@ -161,6 +147,7 @@ for var_iter in range(num_figs):
     fig = plt.figure(figsize=(10, 7), dpi=100)
     ax  = fig.add_subplot()
     var_time = var_iter/t_eddy # normalise time point by eddy-turnover time
+    print('Processing: %0.3f%% complete'%(100 * var_iter/num_figs))
 
     #############################################
     ## LOAD DATA
@@ -168,23 +155,15 @@ for var_iter in range(num_figs):
     print('Loading data...')
     name_file_kin = 'Turb_hdf5_plt_cnt_' + '{0:04}'.format(var_iter) + '_spect_vels.dat' # kinetic file
     name_file_mag = 'Turb_hdf5_plt_cnt_' + '{0:04}'.format(var_iter) + '_spect_mags.dat' # magnetic file
-    ## load dataset 1
-    data_x_1_kin, data_y_1_kin = loadData(filepath_data_1 + '/' + name_file_kin) # kinetic power spectrum
-    data_x_1_mag, data_y_1_mag = loadData(filepath_data_1 + '/' + name_file_mag) # magnetic power spectrum
-    ## load dataset 2
-    data_x_2_kin, data_y_2_kin = loadData(filepath_data_2 + '/' + name_file_kin) # kinetic power spectrum
-    data_x_2_mag, data_y_2_mag = loadData(filepath_data_2 + '/' + name_file_mag) # magnetic power spectrum
+    data_x_kin, data_y_kin = loadData(filepath_data + '/' + name_file_kin) # kinetic power spectrum
+    data_x_mag, data_y_mag = loadData(filepath_data + '/' + name_file_mag) # magnetic power spectrum
 
     #############################################
     ## PLOT DATA
     #############################################
     print('Plotting data...')
-    ## plot dataset 1
-    line_1_kin, = plt.plot(data_x_1_kin, data_y_1_kin, 'k', label=label_1_kin) # kinetic power spectrum
-    line_1_mag, = plt.plot(data_x_1_mag, data_y_1_mag, 'k--', label=label_1_mag) # magnetic power spectrum
-    ## plot dataset 2
-    line_1_kin, = plt.plot(data_x_2_kin, data_y_2_kin, 'b', label=label_2_kin) # kinetic power spectrum
-    line_1_mag, = plt.plot(data_x_2_mag, data_y_2_mag, 'b--', label=label_2_mag) # magnetic power spectrum
+    line_kin, = plt.plot(data_x_kin, data_y_kin, 'k', label=label_kin) # kinetic power spectrum
+    line_mag, = plt.plot(data_x_mag, data_y_mag, 'k--', label=label_mag) # magnetic power spectrum
 
     #############################################
     ## LABEL and ADJUST PLOT
@@ -204,8 +183,6 @@ for var_iter in range(num_figs):
     # label plots
     plt.xlabel(r'$k$',           fontsize=20)
     plt.ylabel(r'$\mathcal{P}$', fontsize=20)
-    # add legend
-    ax.legend(loc='upper right', fontsize=17, frameon=False)
     ## major grid
     ax.grid(which='major', linestyle='-', linewidth='0.5', color='black', alpha=0.35)
     ## minor grid
