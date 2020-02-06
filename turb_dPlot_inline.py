@@ -49,9 +49,15 @@ folder_data_1 = args['dat_folder1'] # first subfolder's fig_name
 folder_data_2 = args['dat_folder2'] # second subfolder's fig_name
 folder_plot   = args['vis_folder']  # subfolder where animation and plots will be saved
 fig_name      = args['fig_name']    # fig_name of figures
-## remove the trailing '/' from the input filepath
+## remove the trailing '/' from the input filepath/folders
 if filepath_base.endswith('/'):
     filepath_base = filepath_base[:-1]
+if folder_data_1.endswith('/'):
+    folder_data_1 = folder_data_1[:-1]
+if folder_data_2.endswith('/'):
+    folder_data_2 = folder_data_2[:-1]
+if folder_plot.endswith('/'):
+    folder_plot = folder_plot[:-1]
 ## start code
 print('Began running the spectra plotting code in the filepath: \n\t' + filepath_base)
 print('Data folder 1: ' + folder_data_1)
@@ -142,7 +148,6 @@ filepath_plot   = createFilePath([filepath_base, folder_plot])
 createFolder(filepath_plot)
 ## open figure
 fig = plt.figure(figsize=(10, 7), dpi=100)
-ax  = fig.add_subplot()
 
 ##################################################################
 ## LOADING DATA
@@ -163,16 +168,16 @@ plt.plot(data_x_2, data_y_2, 'b', label=label_data_2)
 ##################################################################
 print('Labelling plot...')
 # add legend
-ax.legend(loc='lower right', fontsize=17, frameon=False)
+plt.legend(loc='lower right', fontsize=17, frameon=False)
 ## major grid
-ax.grid(which='major', linestyle='-', linewidth='0.5', color='black', alpha=0.35)
+plt.grid(which='major', linestyle='-', linewidth='0.5', color='black', alpha=0.35)
 ## minor grid
-ax.grid(which='minor', linestyle='--', linewidth='0.5', color='black', alpha=0.2)
+plt.grid(which='minor', linestyle='--', linewidth='0.5', color='black', alpha=0.2)
 ## label plot
 plt.xlabel(label_x, fontsize=20)
 plt.ylabel(label_y, fontsize=20)
 ## scale y-axis
-ax.set_yscale(var_scale)
+plt.yscale(var_scale)
 
 ##################################################################
 ## SAVE IMAGE

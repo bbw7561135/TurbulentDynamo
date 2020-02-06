@@ -143,7 +143,6 @@ filepath_plot = createFilePath([filepath_base, folder_plot])
 createFolder(filepath_plot)
 ## open figure
 fig = plt.figure(figsize = (10, 7), dpi = 100)
-ax  = fig.add_subplot()
 
 ##################################################################
 ## LOADING DATA
@@ -166,46 +165,45 @@ plt.plot(data_x, data_y, 'k')
 ## ADD REGRESSION / AVERAGING
 ##################################################################
 ## plot regression analysis
-if bool_regression:
+if (bool_regression and (max(data_x) > x_min)):
     log_y = np.log(fit_y)
     m, c  = np.polyfit(fit_x, log_y, 1)    # fit log(y) = m*log(x) + c
     fit_y = np.exp([m*x + c for x in fit_x]) # calculate the fitted values of y 
-    plt.plot(fit_x, fit_y, 'k--', linewidth = 1)
-    ax.text(0.75, 0.23,
-        r"$m = %0.1f$"%m,
-        fontsize = 20, color = 'black', 
-        ha = "left", va = 'top', transform = ax.transAxes)
-    ax.text(0.75, 0.15,
-        r"$c = %0.1f$"%c,
-        fontsize = 20, color = 'black', 
-        ha = "left", va = 'top', transform = ax.transAxes)
+    plt.annotate(r"$m = %0.1f$"%m,
+            xy=(0.75, 0.23),
+            fontsize=20, color='black', 
+            ha="left", va='top', xycoords='axes fraction')
+    plt.annotate(r"$c = %0.1f$"%c,
+            xy=(0.75, 0.15),
+            fontsize=20, color='black', 
+            ha="left", va='top', xycoords='axes fraction')
 ## plot average analysis
-if bool_ave:
+if (bool_ave and (max(data_x) > x_min)):
     var_dt    = np.diff(fit_x)
     var_ave_y = [(prev+cur)/2 for prev, cur in zip(fit_y[:-1], fit_y[1:])]
     ave_y     = sum(var_ave_y * var_dt) / (x_max - x_min)
     fit_y     = np.repeat(ave_y, len(fit_y))
-    ax.text(0.5, 0.25,
-        r"$\langle %s \rangle \pm 1\sigma = $"%label_y.replace('$', '') +
-        r"$%0.2f$"%ave_y + 
-        r" $\pm$ " +
-        r"$%0.1g$"%np.sqrt(np.var(data_y)),
-        fontsize = 20, color = 'black', 
-        ha = "left", va = 'top', transform = ax.transAxes)
+    plt.annotate(r"$\langle %s \rangle \pm 1\sigma = $"%label_y.replace('$', '') +
+                r"$%0.2f$"%ave_y + 
+                r" $\pm$ " +
+                r"$%0.1g$"%np.sqrt(np.var(data_y)),
+            xy=(0.5, 0.25),
+            fontsize = 20, color = 'black', 
+            ha = "left", va = 'top', xycoords='axes fraction')
 
 ##################################################################
 ## LABEL and ADJUST PLOT
 ##################################################################
 print('Labelling plot...')
 ## major grid
-ax.grid(which = 'major', linestyle = '-', linewidth = '0.5', color = 'black', alpha = 0.35)
+plt.grid(which='major', linestyle='-', linewidth='0.5', color='black', alpha=0.35)
 ## minor grid
-ax.grid(which = 'minor', linestyle = '--', linewidth = '0.5', color = 'black', alpha = 0.2)
+plt.grid(which='minor', linestyle='--', linewidth='0.5', color='black', alpha=0.2)
 ## label plot
 plt.xlabel(label_x, fontsize = 20)
 plt.ylabel(label_y, fontsize = 20)
 ## scale y-axis
-ax.set_yscale(var_scale)
+plt.yscale(var_scale)
 
 ##################################################################
 ## SAVE IMAGE

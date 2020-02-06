@@ -3,7 +3,7 @@
 ''' AUTHOR: Neco Kriel
     
     EXAMPLE: 
-    slice_plot_inline.py -num_files 100 -num_proc 4 -pre_name Bk10 -base_path /Users/dukekriel/Documents/University/Year4Sem2/Summer-19/ANU-Turbulence-Dynamo/dyna288_Bk10
+    slice_plot_inline.py -base_path /Users/dukekriel/Documents/University/Year4Sem2/Summer-19/ANU-Turbulence-Dynamo/dyna288_Bk10 -vis_folder visFiles -pre_name dyna288_Bk10 -num_proc 4
 
     OTHER: 
     Compiling flash4 command:

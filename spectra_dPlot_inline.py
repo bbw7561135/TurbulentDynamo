@@ -61,9 +61,15 @@ folder_data_1 = args['dat_folder1'] # first subfolder's name
 folder_data_2 = args['dat_folder2'] # second subfolder's name
 folder_vis    = args['vis_folder']  # subfolder where animation and plots will be saved
 fig_name      = args['fig_name']    # name of figures
-## remove the trailing '/' from the input filepath
+## remove the trailing '/' from the input filepath and folders
 if filepath_base.endswith('/'):
     filepath_base = filepath_base[:-1]
+if folder_data_1.endswith('/'):
+    folder_data_1 = folder_data_1[:-1]
+if folder_data_2.endswith('/'):
+    folder_data_2 = folder_data_2[:-1]
+if folder_vis.endswith('/'):
+    folder_vis = folder_vis[:-1]
 ## start code
 print('Began running the spectra plotting code in base filepath: \n\t' + filepath_base)
 print('Data folder 1: ' + folder_data_1)
@@ -159,8 +165,8 @@ for var_iter in range(num_figs):
     ## INITIALISE LOOP
     #############################################
     fig = plt.figure(figsize=(10, 7), dpi=100)
-    ax  = fig.add_subplot()
     var_time = var_iter/t_eddy # normalise time point by eddy-turnover time
+    print('Processing: %0.3f%% complete'%(100 * var_iter/num_figs))
 
     #############################################
     ## LOAD DATA
@@ -191,25 +197,25 @@ for var_iter in range(num_figs):
     #############################################
     print('Labelling plot...')
     ## scale axies
-    ax.set_xscale('log')
-    ax.set_yscale('log')
+    plt.xscale('log')
+    plt.yscale('log')
     ## set axis limits
     plt.xlim(xlim_min, xlim_max)
     plt.ylim(ylim_min, ylim_max)
     ## annote time (eddy tunrover-time)
-    title = ax.text(0.5, 0.95,
-                r'$t/t_{\mathregular{eddy}} = $' + u'%0.2f'%(var_time),
-                fontsize=20, color='black', 
-                ha='center', va='top', transform=ax.transAxes)
+    title = plt.annotate(r'$t/t_{\mathregular{eddy}} = $' + u'%0.2f'%(var_time),
+                    xy=(0.5, 0.95),
+                    fontsize=20, color='black', 
+                    ha='center', va='top', xycoords='axes fraction')
     # label plots
     plt.xlabel(r'$k$',           fontsize=20)
     plt.ylabel(r'$\mathcal{P}$', fontsize=20)
     # add legend
-    ax.legend(loc='upper right', fontsize=17, frameon=False)
+    plt.legend(loc='upper right', fontsize=17, frameon=False)
     ## major grid
-    ax.grid(which='major', linestyle='-', linewidth='0.5', color='black', alpha=0.35)
+    plt.grid(which='major', linestyle='-', linewidth='0.5', color='black', alpha=0.35)
     ## minor grid
-    ax.grid(which='minor', linestyle='--', linewidth='0.5', color='black', alpha=0.2)
+    plt.grid(which='minor', linestyle='--', linewidth='0.5', color='black', alpha=0.2)
 
     #############################################
     ## SAVE IMAGE
