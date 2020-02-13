@@ -3,7 +3,9 @@
 ''' AUTHOR: Neco Kriel
     
     EXAMPLE: 
-    turb_plot_inline.py -base_path /Users/dukekriel/Documents/University/Year4Sem2/Summer-19/ANU-Turbulence-Dynamo/dyna288_Bk10 -vis_folder visFiles -fig_name dyna288_Bk10
+    turb_plot_inline.py 
+        -base_path /Users/dukekriel/Documents/University/Year4Sem2/Summer-19/ANU-Turbulence-Dynamo/dyna288_Bk10 
+        -pre_name dyna288_Bk10
 '''
 
 ##################################################################
@@ -23,44 +25,15 @@ plt.close('all')                    # close all pre-existing plots
 mpl.style.use('classic')            # plot in classic style
 
 ##################################################################
-## INPUT COMMAND LINE ARGUMENTS
-##################################################################
-global bool_debug_mode, filepath_base
-ap = argparse.ArgumentParser(description='A bunch of input arguments')
-## ------------------- OPTIONAL ARGUMENTS
-ap.add_argument('-debug', required=False, help='Debug mode', type=bool, default=False)
-ap.add_argument('-xmin', required=False, help='Minimum x value which analysis is performed', type=float, default=3.2)
-ap.add_argument('-xmax', required=False, help='Maximum x value which analysis is performed', type=float, default=6)
-## ------------------- REQUIRED ARGUMENTS
-ap.add_argument('-base_path', required=True, help='Filepath to the base folder', type=str)
-ap.add_argument('-vis_folder', required=True, help='Name of the folder where the figures will be saved', type=str)
-ap.add_argument('-fig_name', required=True, help='Name of figures', type=str)
-## save arguments
-args = vars(ap.parse_args())
-## ------------------- BOOLEANS
-## enable/disable debug mode
-if (args['debug'] == True):
-    bool_debug_mode = True
-else:
-    bool_debug_mode = False
-## ------------------- FILEPATH PARAMETERS
-filepath_base = args['base_path']   # home directory
-folder_plot   = args['vis_folder']  # subfolder where animation and plots will be saved
-fig_name      = args['fig_name']    # fig_name of figures
-## remove the trailing '/' from the input filepath
-if filepath_base.endswith('/'):
-    filepath_base = filepath_base[:-1]
-## ------------------- ANALYSIS DOMAIN
-x_min = args['xmin']
-x_max = args['xmax']
-## start code
-print('Began running the spectra plotting code in the filepath: \n\t' + filepath_base)
-print('Visualising folder: ' + folder_plot)
-print(' ')
-
-##################################################################
 ## FUNCTIONS
 ##################################################################
+def stringChop(var_string, var_remove):
+    if var_string.endswith(var_remove):
+        var_string = var_string[:-len(var_remove)]
+    if var_string.startswith(var_remove):
+        var_string = var_string[len(var_remove):]
+    return var_string
+
 def createFolder(folder_name):
     if not(os.path.exists(folder_name)):
         os.makedirs(folder_name)
@@ -93,6 +66,47 @@ def loadData(directory):
         data_y = [i / data_y[1] for i in data_y]
     ## return variables
     return [data_x, data_y, data_split[0][var_y][4:]]
+
+##################################################################
+## INPUT COMMAND LINE ARGUMENTS
+##################################################################
+global bool_debug_mode, filepath_base
+ap = argparse.ArgumentParser(description='A bunch of input arguments')
+## ------------------- DEFINE OPTIONAL ARGUMENTS
+ap.add_argument('-vis_folder', required=False, help='Name of the plot folder',                      type=str,  default='visFiles')
+ap.add_argument('-xmin',       required=False, help='Minimum x value which analysis is performed',  type=float, default=3.2)
+ap.add_argument('-debug',      required=False, help='Debug mode',                                   type=bool,  default=False)
+## ------------------- DEFINE REQUIRED ARGUMENTS
+ap.add_argument('-base_path',  required=True,  help='Filepath to the base folder', type=str)
+ap.add_argument('-pre_name',   required=True,  help='Name of figures',             type=str)
+## ------------------- OPEN ARGUMENTS
+args = vars(ap.parse_args())
+## ------------------- SAVE BOOLEANS
+## enable/disable debug mode
+if (args['debug'] == True):
+    bool_debug_mode = True
+else:
+    bool_debug_mode = False
+## ------------------- SAVE FILEPATH PARAMETERS
+filepath_base = args['base_path']   # home directory
+folder_plot   = args['vis_folder']  # subfolder where animation and plots will be saved
+pre_name      = args['pre_name']    # pre_name of figures
+## ------------------- SAVE ANALYSIS DOMAIN
+x_min = args['xmin']
+## ------------------- ADJUST ARGUMENTS
+## remove the trailing '/' from the input filepath
+if filepath_base.endswith('/'):
+    filepath_base = filepath_base[:-1]
+## replace '//' with '/'
+filepath_base = filepath_base.replace('//', '/')
+## remove '/' from start and end of variables
+folder_plot   = stringChop(folder_plot, '/')
+pre_name      = stringChop(pre_name, '/')
+## ------------------- START CODE
+print('Began running the spectra plotting code in the filepath: \n\t' + filepath_base)
+print('Visualising folder: ' + folder_plot)
+print('Figure name: ' + pre_name)
+print(' ')
 
 ##################################################################
 ## DEFINE PLOTTING VARIABLES
@@ -137,7 +151,7 @@ else:
 ##################################################################
 ## INITIALISING VARIABLES
 ##################################################################
-filepath_data = filepath_base + '/Turb.dat'
+filepath_data = (filepath_base + '/Turb.dat')
 filepath_plot = createFilePath([filepath_base, folder_plot])
 ## create folder where the figure will be saved
 createFolder(filepath_plot)
@@ -151,9 +165,8 @@ print('Loading data...')
 data_x, data_y, var_name = loadData(filepath_data)
 ## save analysis data
 index_min = min(enumerate(data_x), key = lambda x: abs(x_min - x[1]))[0]
-index_max = min(enumerate(data_x), key = lambda x: abs(x_max - x[1]))[0]
-fit_x     = list(map(float, data_x[index_min:index_max]))
-fit_y     = list(map(float, data_y[index_min:index_max]))
+fit_x     = list(map(float, data_x[index_min:]))
+fit_y     = list(map(float, data_y[index_min:]))
 
 ##################################################################
 ## PLOTTING DATA
@@ -181,7 +194,7 @@ if (bool_regression and (max(data_x) > x_min)):
 if (bool_ave and (max(data_x) > x_min)):
     var_dt    = np.diff(fit_x)
     var_ave_y = [(prev+cur)/2 for prev, cur in zip(fit_y[:-1], fit_y[1:])]
-    ave_y     = sum(var_ave_y * var_dt) / (x_max - x_min)
+    ave_y     = sum(var_ave_y * var_dt) / (data_x[-1] - x_min)
     fit_y     = np.repeat(ave_y, len(fit_y))
     plt.annotate(r"$\langle %s \rangle \pm 1\sigma = $"%label_y.replace('$', '') +
                 r"$%0.2f$"%ave_y + 
@@ -209,8 +222,8 @@ plt.yscale(var_scale)
 ## SAVE IMAGE
 ##################################################################
 print('Saving the figure...')
-name_fig = filepath_plot + 'turb_' + fig_name + '_' + var_name + '.png'
+name_fig = filepath_plot + pre_name + '_turb_' + var_name + '.png'
 plt.savefig(name_fig)
 print('Figure saved: ' + name_fig)
 
-# ## END OF PROGRAM
+## END OF PROGRAM

@@ -3,7 +3,10 @@
 ''' AUTHOR: Neco Kriel
     
     EXAMPLE: 
-    slice_plot_inline.py -base_path /Users/dukekriel/Documents/University/Year4Sem2/Summer-19/ANU-Turbulence-Dynamo/dyna288_Bk10 -vis_folder visFiles -pre_name dyna288_Bk10 -num_proc 4
+    slice_plot_inline.py 
+        -base_path /Users/dukekriel/Documents/University/Year4Sem2/Summer-19/ANU-Turbulence-Dynamo/dyna288_Bk10 
+        -pre_name dyna288_Bk10 
+        -num_proc 4
 
     OTHER: 
     Compiling flash4 command:
@@ -32,70 +35,15 @@ mpl.style.use('classic')            # plot in classic style
 data_queue = mp.Queue()
 
 ##################################################################
-## INPUT COMMAND LINE ARGUMENTS
-##################################################################
-global file_max, bool_debug_mode, num_proc
-ap = argparse.ArgumentParser(description='A bunch of input arguments')
-## ------------------- OPTIONAL ARGUMENTS
-ap.add_argument('-debug', required=False, help='Debug mode', type=bool, default=False)
-ap.add_argument('-ani_only', required=False, help='Debug mode', type=bool, default=False)
-ap.add_argument('-num_files', required=False, help='Number of files to process', type=int, default=-1)
-ap.add_argument('-start', required=False, help='Start frame number', type=str, default='0')
-ap.add_argument('-fps', required=False, help='Animation frame rate', type=str, default='40')
-## ------------------- REQUIRED ARGUMENTS
-ap.add_argument('-base_path', required=True, help='File path to data', type=str)
-ap.add_argument('-vis_folder', required=True, help='Folder name of where plots should be saved', type=str)
-ap.add_argument('-pre_name', required=True, help='Name of figures', type=str)
-ap.add_argument('-num_proc', required=True, help='Number of processors', type=int)
-## save arguments
-args = vars(ap.parse_args())
-## ------------------- BOOLEANS
-## enable/disable debug mode
-if (args['debug'] == True):
-    bool_debug_mode = True
-else:
-    bool_debug_mode = False
-## enable/disable animating only mode
-if (args['ani_only'] == True):
-    bool_ani_only_mode = True
-else:
-    bool_ani_only_mode = False
-## ------------------- ANIMATION PARAMETERS
-ani_start     = args['start'] # starting animation frame
-ani_fps       = args['fps']   # animation's fps
-## the number of plots to process
-if (args['num_files'] < 0):
-    file_max = np.Inf
-else:
-    file_max = args['num_files']
-## ------------------- FILEPATH PARAMETERS
-filepath_base = args['base_path']  # home directory of data
-folder_vis    = args['vis_folder'] # subfolder where animation and plots will be saved
-pre_name      = args['pre_name']   # name attached to the front of figures and animation
-num_proc      = args['num_proc']   # number of processors
-## remove the trailing '/' from the input filepath
-if filepath_base.endswith('/'):
-    filepath_base = filepath_base[:-1]
-## start code
-print("Began running the slice code in folder: \n\t" + filepath_base)
-print(' ')
-
-##################################################################
-## USER DEFINED VARIABLES
-##################################################################
-## define parameters
-global t_eddy, plasma_beta
-global col_map_min, col_map_max
-t_eddy      = 5 # L/(2*Mach)
-plasma_beta = 1e-10
-## define the directory
-global name_fig, name_vid
-name_fig    = pre_name + '_plot_slice_mag_'
-name_vid    = pre_name + '_ani_mag'
-
-##################################################################
 ## FUNCTIONS
 ##################################################################
+def stringChop(var_string, var_remove):
+    if var_string.endswith(var_remove):
+        var_string = var_string[:-len(var_remove)]
+    if var_string.startswith(var_remove):
+        var_string = var_string[len(var_remove):]
+    return var_string
+
 def createFolder(folder_name):
     if not(os.path.exists(folder_name)):
         os.makedirs(folder_name)
@@ -249,6 +197,79 @@ def reformatField(field, nx=None, procs=None):
     return field_sorted
 
 ##################################################################
+## INPUT COMMAND LINE ARGUMENTS
+##################################################################
+global file_max, bool_debug_mode, num_proc
+ap = argparse.ArgumentParser(description='A bunch of input arguments')
+## ------------------- DEFINE OPTIONAL ARGUMENTS
+ap.add_argument('-ani_only',   required=False, help='Debug mode',                                   type=bool, default=False)
+ap.add_argument('-debug',      required=False, help='Debug mode',                                   type=bool, default=False)
+ap.add_argument('-vis_folder', required=False, help='Name of the plot folder',                      type=str,  default='visFiles')
+ap.add_argument('-sub_folder', required=False, help='Name of the folder where the data is stored',  type=str,  default='sliceFiles')
+ap.add_argument('-start',      required=False, help='Start frame number',                           type=str,  default='0')
+ap.add_argument('-fps',        required=False, help='Animation frame rate',                         type=str,  default='40')
+ap.add_argument('-num_files',  required=False, help='Number of files to process',                   type=int,  default=-1)
+ap.add_argument('-num_proc',   required=False, help='Number of processors',                         type=int,  default=8)
+## ------------------- DEFINE REQUIRED ARGUMENTS
+ap.add_argument('-base_path',  required=True, help='File path to data',    type=str)
+ap.add_argument('-pre_name',   required=True, help='Name of figures',      type=str)
+## ------------------- OPEN ARGUMENTS
+args = vars(ap.parse_args())
+## ------------------- SAVE BOOLEANS
+## enable/disable debug mode
+if (args['debug'] == True):
+    bool_debug_mode = True
+else:
+    bool_debug_mode = False
+## enable/disable animating only mode
+if (args['ani_only'] == True):
+    bool_ani_only_mode = True
+else:
+    bool_ani_only_mode = False
+## ------------------- SAVE ANIMATION PARAMETERS
+ani_start     = args['start'] # starting animation frame
+ani_fps       = args['fps']   # animation's fps
+## the number of plots to process
+if (args['num_files'] < 0):
+    file_max = np.Inf
+else:
+    file_max = args['num_files']
+## ------------------- SAVE FILEPATH PARAMETERS
+filepath_base = args['base_path']  # home directory of data
+folder_vis    = args['vis_folder'] # subfolder where animation and plots will be saved
+folder_sub    = args['sub_folder'] # sub-subfolder where data is stored's name
+pre_name      = args['pre_name']   # name attached to the front of figures and animation
+num_proc      = args['num_proc']   # number of processors
+## ------------------- ADJUST ARGUMENTS
+## remove the trailing '/' from the input filepath
+if filepath_base.endswith('/'):
+    filepath_base = filepath_base[:-1]
+## replace '//' with '/'
+filepath_base = filepath_base.replace('//', '/')
+## remove '/' from variables
+folder_vis    = stringChop(folder_vis, '/')
+folder_sub    = stringChop(folder_sub, '/')
+pre_name      = stringChop(pre_name, '/')
+## ------------------- START CODE
+print("Began running the slice code in folder: \n\t" + filepath_base)
+print('Visualising folder: ' + folder_vis)
+print('Figure name: ' + pre_name)
+print(' ')
+
+##################################################################
+## USER DEFINED VARIABLES
+##################################################################
+## define parameters
+global t_eddy, plasma_beta
+global col_map_min, col_map_max
+t_eddy      = 5 # L/(2*Mach)
+plasma_beta = 1e-10
+## define the directory
+global name_fig, name_vid
+name_fig    = pre_name + '_plot_slice_mag_'
+name_vid    = pre_name + '_ani_mag'
+
+##################################################################
 ## SETUP VARIABLES
 ##################################################################
 ## announce debug status
@@ -258,7 +279,7 @@ if bool_debug_mode:
 # initialise filepaths
 global filepath_data, filepath_plot
 global file_names, num_figs
-filepath_data = createFilePath([filepath_base, 'sliceFiles']) # where data is stored
+filepath_data = createFilePath([filepath_base, folder_sub]) # where data is stored
 filepath_plot = createFilePath([filepath_base, folder_vis, 'plotSlices']) # where plots will be saved
 if bool_debug_mode:
     print('--------- Debug: Check directories -----------------------------------')

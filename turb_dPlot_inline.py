@@ -3,7 +3,11 @@
 ''' AUTHOR: Neco Kriel
     
     EXAMPLE: 
-    turb_dPlot_inline.py -base_path /Users/dukekriel/Documents/University/Year4Sem2/Summer-19/ANU-Turbulence-Dynamo -dat_folder1 dyna288_Bk10 -dat_folder2 dyna288_Bk100 -vis_folder testPlots -fig_name dyna288
+    turb_dPlot_inline.py 
+        -base_path /Users/dukekriel/Documents/University/Year4Sem2/Summer-19/ANU-Turbulence-Dynamo 
+        -dat_folder1 dyna288_Bk10 
+        -dat_folder2 dyna288_Bk100 
+        -pre_name dyna288
 '''
 
 ##################################################################
@@ -23,51 +27,15 @@ plt.close('all')                    # close all pre-existing plots
 mpl.style.use('classic')            # plot in classic style
 
 ##################################################################
-## INPUT COMMAND LINE ARGUMENTS
-##################################################################
-global bool_debug_mode, filepath_base
-ap = argparse.ArgumentParser(description='A bunch of input arguments')
-## ------------------- OPTIONAL ARGUMENTS
-ap.add_argument('-debug', required=False, help='Debug mode', type=bool, default=False)
-## ------------------- REQUIRED ARGUMENTS
-ap.add_argument('-base_path', required=True, help='Filepath to the base folder', type=str)
-ap.add_argument('-dat_folder1', required=True, help='Name of the first folder', type=str)
-ap.add_argument('-dat_folder2', required=True, help='Name of the second folder', type=str)
-ap.add_argument('-vis_folder', required=True, help='Name of the folder where the figures will be saved', type=str)
-ap.add_argument('-fig_name', required=True, help='Name of figures', type=str)
-## save arguments
-args = vars(ap.parse_args())
-## ------------------- BOOLEANS
-## enable/disable debug mode
-if (args['debug'] == True):
-    bool_debug_mode = True
-else:
-    bool_debug_mode = False
-## ------------------- FILEPATH PARAMETERS
-filepath_base = args['base_path']   # home directory
-folder_data_1 = args['dat_folder1'] # first subfolder's fig_name
-folder_data_2 = args['dat_folder2'] # second subfolder's fig_name
-folder_plot   = args['vis_folder']  # subfolder where animation and plots will be saved
-fig_name      = args['fig_name']    # fig_name of figures
-## remove the trailing '/' from the input filepath/folders
-if filepath_base.endswith('/'):
-    filepath_base = filepath_base[:-1]
-if folder_data_1.endswith('/'):
-    folder_data_1 = folder_data_1[:-1]
-if folder_data_2.endswith('/'):
-    folder_data_2 = folder_data_2[:-1]
-if folder_plot.endswith('/'):
-    folder_plot = folder_plot[:-1]
-## start code
-print('Began running the spectra plotting code in the filepath: \n\t' + filepath_base)
-print('Data folder 1: ' + folder_data_1)
-print('Data folder 2: ' + folder_data_2)
-print('Visualising folder: ' + folder_plot)
-print(' ')
-
-##################################################################
 ## FUNCTIONS
 ##################################################################
+def stringChop(var_string, var_remove):
+    if var_string.endswith(var_remove):
+        var_string = var_string[:-len(var_remove)]
+    if var_string.startswith(var_remove):
+        var_string = var_string[len(var_remove):]
+    return var_string
+
 def createFolder(folder_name):
     if not(os.path.exists(folder_name)):
         os.makedirs(folder_name)
@@ -100,6 +68,52 @@ def loadData(directory):
         data_y = [i / data_y[1] for i in data_y]
     ## return variables
     return [data_x, data_y, data_split[0][var_y][4:]]
+
+##################################################################
+## INPUT COMMAND LINE ARGUMENTS
+##################################################################
+global bool_debug_mode, filepath_base
+ap = argparse.ArgumentParser(description='A bunch of input arguments')
+## ------------------- DEFINE OPTIONAL ARGUMENTS
+ap.add_argument('-vis_folder', required=False, help='Name of the plot folder', type=str,  default='visFiles')
+ap.add_argument('-debug',      required=False, help='Debug mode',              type=bool, default=False)
+## ------------------- DEFINE REQUIRED ARGUMENTS
+ap.add_argument('-base_path',   required=True, help='Filepath to the base folder', type=str)
+ap.add_argument('-dat_folder1', required=True, help='Name of the first folder',    type=str)
+ap.add_argument('-dat_folder2', required=True, help='Name of the second folder',   type=str)
+ap.add_argument('-pre_name',    required=True, help='Name of figures',             type=str)
+## ------------------- OPEN ARGUMENTS
+args = vars(ap.parse_args())
+## ------------------- SAVE BOOLEANS
+## enable/disable debug mode
+if (args['debug'] == True):
+    bool_debug_mode = True
+else:
+    bool_debug_mode = False
+## ------------------- SAVE FILEPATH PARAMETERS
+filepath_base = args['base_path']   # home directory
+folder_data_1 = args['dat_folder1'] # first subfolder's pre_name
+folder_data_2 = args['dat_folder2'] # second subfolder's pre_name
+folder_plot   = args['vis_folder']  # subfolder where animation and plots will be saved
+pre_name      = args['pre_name']    # pre_name of figures
+## ------------------- ADJUST ARGUMENTS
+## remove the trailing '/' from the input filepath/folders
+if filepath_base.endswith('/'):
+    filepath_base = filepath_base[:-1]
+## replace '//' with '/'
+filepath_base = filepath_base.replace('//', '/')
+## remove '/' from variables
+folder_data_1 = stringChop(folder_data_1, '/')
+folder_data_2 = stringChop(folder_data_2, '/')
+folder_plot   = stringChop(folder_plot, '/')
+pre_name      = stringChop(pre_name, '/')
+## ------------------- START CODE
+print('Began running the spectra plotting code in the filepath: \n\t' + filepath_base)
+print('Data folder 1: ' + folder_data_1)
+print('Data folder 2: ' + folder_data_2)
+print('Visualising folder: ' + folder_plot)
+print('Figure name: ' + pre_name)
+print(' ')
 
 ##################################################################
 ## DEFINE PLOTTING VARIABLES
@@ -183,8 +197,8 @@ plt.yscale(var_scale)
 ## SAVE IMAGE
 ##################################################################
 print('Saving the figure...')
-name_fig = filepath_plot + 'turb_dyna288_' + var_name + '.png'
+name_fig = filepath_plot + pre_name + '_turb_' + var_name + '_combined.png'
 plt.savefig(name_fig)
 print('Figure saved: ' + name_fig)
 
-# ## END OF PROGRAM
+## END OF PROGRAM

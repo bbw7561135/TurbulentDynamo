@@ -1,9 +1,13 @@
 #!/usr/bin/env python3
 
 ''' AUTHOR: Neco Kriel
-
+    
     EXAMPLE: 
-    spectra_dPlot_inline.py -base_path /Users/dukekriel/Documents/University/Year4Sem2/Summer-19/ANU-Turbulence-Dynamo -dat_folder1 dyna288_Bk10 -dat_folder2 dyna288_Bk100 -vis_folder testPlots -fig_name dyna288
+    spectra_dPlot_inline.py 
+        -base_path /Users/dukekriel/Documents/University/Year4Sem2/Summer-19/ANU-Turbulence-Dynamo 
+        -dat_folder1 dyna288_Bk10 
+        -dat_folder2 dyna288_Bk100
+        -pre_name dyna288
 '''
 
 ##################################################################
@@ -23,58 +27,130 @@ plt.close('all')                    # close all pre-existing plots
 mpl.style.use('classic')            # plot in classic style
 
 ##################################################################
+## FUNCTIONS
+##################################################################
+def stringChop(var_string, var_remove):
+    if var_string.endswith(var_remove):
+        var_string = var_string[:-len(var_remove)]
+    if var_string.startswith(var_remove):
+        var_string = var_string[len(var_remove):]
+    return var_string
+
+def createFolder(folder_name):
+    if not(os.path.exists(folder_name)):
+        os.makedirs(folder_name)
+        print('SUCCESS: \n\tFolder created. \n\t' + folder_name)
+        print(' ')
+    else:
+        print('WARNING: \n\tFolder already exists (folder not created). \n\t' + folder_name)
+        print(' ')
+
+def setupInfo(filepath):
+    global bool_debug_mode
+    ## save the the filenames to process
+    file_names = list(filter(meetsCondition, sorted(os.listdir(filepath))))
+    print('Filepath: ' + filepath)
+    print('Number of sepctra files: ' + str(len(file_names)/2))
+    print(' ')
+    ## check files
+    if bool_debug_mode:
+        print('The files in the filepath:')
+        print('\t' + filepath)
+        print('\tthat satisfied meetCondition are the files:')
+        print('\t\t' + '\n\t\t'.join(file_names))
+        print(' ')
+    ## return data
+    return [file_names, int(len(file_names)/2)]
+
+def createFilePath(names):
+    return ('/'.join([x for x in names if x != '']) + '/')
+
+def meetsCondition(element):
+    global bool_debug_mode, file_max, file_start
+    ends_correct = (element.endswith('mags.dat') or element.endswith('vels.dat')) # check file is magnetic or velocity field
+    if (ends_correct and (len(element.split('_')) >= 4)):
+        number_correct = (int(element.split('_')[4]) >= file_start) # check file number is larger than file_start
+        if bool_debug_mode:
+            return bool(number_correct and ends_correct and (int(element.split('_')[4]) <= 5))
+        elif file_max != np.Inf:
+            return bool(number_correct and ends_correct and (int(element.split('_')[4]) <= file_max))
+        else:
+            return bool(number_correct and ends_correct)
+    return False
+
+def loadData(directory):
+    global bool_debug_mode, var_x, var_y
+    filedata     = open(directory).readlines() # load in data
+    header       = filedata[5].split() # save the header
+    data         = np.array([x.strip().split() for x in filedata[6:]]) # store all data. index: data[row, col]
+    if bool_debug_mode:
+        print('\nHeader names: for ' + directory.split('/')[-1])
+        print('\n'.join(header)) # print all header names (with index)
+    data_x = list(map(float, data[:, var_x]))
+    data_y = list(map(float, data[:, var_y]))
+    return data_x, data_y
+
+##################################################################
 ## INPUT COMMAND LINE ARGUMENTS
 ##################################################################
-global file_max, bool_debug_mode, filepath_base
+global file_max, bool_debug_mode, filepath_base, file_start
 ap = argparse.ArgumentParser(description='A bunch of input arguments')
-## ------------------- OPTIONAL ARGUMENTS
-ap.add_argument('-debug', required=False, help='Debug mode', type=bool, default=False)
-ap.add_argument('-num_files', required=False, help='Number of files to process', type=int, default=-1)
-ap.add_argument('-start', required=False, help='Start frame number', type=str, default='0')
-ap.add_argument('-fps', required=False, help='Animation frame rate', type=str, default='40')
-## ------------------- REQUIRED ARGUMENTS
-ap.add_argument('-base_path', required=True, help='Filepath to the base folder', type=str)
-ap.add_argument('-dat_folder1', required=True, help='Name of the first folder', type=str)
-ap.add_argument('-dat_folder2', required=True, help='Name of the second folder', type=str)
-ap.add_argument('-vis_folder', required=True, help='Name of the folder where the figures will be saved', type=str)
-ap.add_argument('-fig_name', required=True, help='Name of figures', type=str)
-## save arguments
+## ------------------- DEFINE OPTIONAL ARGUMENTS
+ap.add_argument('-debug',      required=False, help='Debug mode',                                   type=bool, default=False)
+ap.add_argument('-vis_folder', required=False, help='Name of the plot folder',                      type=str,  default='visFiles')
+ap.add_argument('-sub_folder', required=False, help='Name of the folder where the data is stored',  type=str,  default='spectFiles')
+ap.add_argument('-fps',        required=False, help='Animation frame rate',                         type=str,  default='40')
+ap.add_argument('-start_ani',  required=False, help='Animation start number',                       type=str,  default='0')
+ap.add_argument('-start_file', required=False, help='File number to start plotting from',           type=int,  default=0)
+ap.add_argument('-num_files',  required=False, help='Number of files to process',                   type=int,  default=-1)
+## ------------------- DEFINE REQUIRED ARGUMENTS
+ap.add_argument('-base_path',   required=True, help='Filepath to the base folder',  type=str)
+ap.add_argument('-dat_folder1', required=True, help='Name of the first folder',     type=str)
+ap.add_argument('-dat_folder2', required=True, help='Name of the second folder',    type=str)
+ap.add_argument('-pre_name',    required=True, help='Name of figures',              type=str)
+## ------------------- OPEN ARGUMENTS
 args = vars(ap.parse_args())
-## ------------------- BOOLEANS
+## ------------------- SAVE BOOLEANS
 ## enable/disable debug mode
 if (args['debug'] == True):
     bool_debug_mode = True
 else:
     bool_debug_mode = False
-## ------------------- ANIMATION PARAMETERS
-## save required arguments
-ani_start     = args['start']       # starting animation frame
+## ------------------- SAVE PROCESSING PARAMETERS
+file_start    = args['start_file']  # starting processing frame
+## ------------------- SAVE ANIMATION PARAMETERS
+ani_start     = args['start_ani']   # starting animation frame
 ani_fps       = args['fps']         # animation's fps
 ## the number of plots to process
 if (args['num_files'] < 0):
     file_max = np.Inf
 else:
     file_max = args['num_files']
-## ------------------- FILEPATH PARAMETERS
+## ------------------- SAVE FILEPATH PARAMETERS
 filepath_base = args['base_path']   # home directory
 folder_data_1 = args['dat_folder1'] # first subfolder's name
 folder_data_2 = args['dat_folder2'] # second subfolder's name
+folder_sub    = args['sub_folder']  # sub-subfolder where data is stored's name
 folder_vis    = args['vis_folder']  # subfolder where animation and plots will be saved
-fig_name      = args['fig_name']    # name of figures
+pre_name      = args['pre_name']    # name of figures
+## ------------------- ADJUST ARGUMENTS
 ## remove the trailing '/' from the input filepath and folders
 if filepath_base.endswith('/'):
     filepath_base = filepath_base[:-1]
-if folder_data_1.endswith('/'):
-    folder_data_1 = folder_data_1[:-1]
-if folder_data_2.endswith('/'):
-    folder_data_2 = folder_data_2[:-1]
-if folder_vis.endswith('/'):
-    folder_vis = folder_vis[:-1]
-## start code
+## replace '//' with '/'
+filepath_base = filepath_base.replace('//', '/')
+## remove '/' from variables
+folder_data_1 = stringChop(folder_data_1, '/')
+folder_data_2 = stringChop(folder_data_2, '/')
+folder_sub    = stringChop(folder_sub, '/')
+folder_vis    = stringChop(folder_vis, '/')
+pre_name      = stringChop(pre_name, '/')
+## ------------------- START CODE
 print('Began running the spectra plotting code in base filepath: \n\t' + filepath_base)
 print('Data folder 1: ' + folder_data_1)
 print('Data folder 2: ' + folder_data_2)
 print('Visualising folder: ' + folder_vis)
+print('Figure name: ' + pre_name)
 print(' ')
 
 ##################################################################
@@ -99,61 +175,10 @@ ylim_min = 1.0e-25
 ylim_max = 4.2e-03
 
 ##################################################################
-## FUNCTIONS
-##################################################################
-def createFolder(folder_name):
-    if not(os.path.exists(folder_name)):
-        os.makedirs(folder_name)
-        print('SUCCESS: \n\tFolder created. \n\t' + folder_name)
-        print(' ')
-    else:
-        print('WARNING: \n\tFolder already exists (folder not created). \n\t' + folder_name)
-        print(' ')
-
-def setupInfo(filepath):
-    global bool_debug_mode
-    ## save the the filenames to process
-    file_names = list(filter(meetsCondition, sorted(os.listdir(filepath))))
-    ## check files
-    if bool_debug_mode:
-        print('The files in the filepath:')
-        print('\t' + filepath)
-        print('\tthat satisfied meetCondition are the files:')
-        print('\t\t' + '\n\t\t'.join(file_names))
-        print(' ')
-    ## return data
-    return [file_names, int(len(file_names)/2)]
-
-def createFilePath(names):
-    return ('/'.join([x for x in names if x != '']) + '/')
-
-def meetsCondition(element):
-    global bool_debug_mode, file_max
-    ends_correct = (element.endswith('mags.dat') or element.endswith('vels.dat'))
-    if bool_debug_mode:
-        return bool(ends_correct and (int(element.split('_')[4]) <= 5))
-    elif file_max != np.Inf:
-        return bool(ends_correct and (int(element.split('_')[4]) <= file_max))
-    else:
-        return bool(ends_correct)
-
-def loadData(directory):
-    global bool_debug_mode, var_x, var_y
-    filedata     = open(directory).readlines() # load in data
-    header       = filedata[5].split() # save the header
-    data         = np.array([x.strip().split() for x in filedata[6:]]) # store all data. index: data[row, col]
-    if bool_debug_mode:
-        print('\nHeader names: for ' + directory.split('/')[-1])
-        print('\n'.join(header)) # print all header names (with index)
-    data_x = list(map(float, data[:, var_x]))
-    data_y = list(map(float, data[:, var_y]))
-    return data_x, data_y
-
-##################################################################
 ## INITIALISING VARIABLES
 ##################################################################
-filepath_data_1 = createFilePath([filepath_base, folder_data_1, 'spectFiles']) # first folder with data
-filepath_data_2 = createFilePath([filepath_base, folder_data_2, 'spectFiles']) # second folder with data
+filepath_data_1 = createFilePath([filepath_base, folder_data_1, folder_sub]) # first folder with data
+filepath_data_2 = createFilePath([filepath_base, folder_data_2, folder_sub]) # second folder with data
 filepath_plot   = createFilePath([filepath_base, folder_vis, 'plotSpectra']) # folder where plots will be saved
 file_names_1, num_figs_1 = setupInfo(filepath_data_1)
 file_names_2, num_figs_2 = setupInfo(filepath_data_2)
@@ -221,15 +246,15 @@ for var_iter in range(num_figs):
     ## SAVE IMAGE
     #############################################
     print('Saving figure...')
-    temp_name = filepath_plot + fig_name + '_spectra={0:06}'.format(int(var_time*10)) + '.png'
+    temp_name = filepath_plot + pre_name + '_spectra={0:06}'.format(int(var_time*10)) + '.png'
     plt.savefig(temp_name)
     plt.close()
     print('Figure saved: ' + temp_name)
     print(' ')
 
 ## create animation
-filepath_input  = (filepath_plot + fig_name + '_spectra=%06d.png')
-filepath_output = (filepath_plot + '../' + fig_name + '_ani_spectra.mp4')
+filepath_input  = (filepath_plot + pre_name + '_spectra=%06d.png')
+filepath_output = (filepath_plot + '../' + pre_name + '_ani_spectras_combined.mp4')
 ffmpeg_input    = ('ffmpeg -start_number '          + ani_start + 
                 ' -i '                              + filepath_input + 
                 ' -vb 40M -framerate '              + ani_fps + 
