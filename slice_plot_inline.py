@@ -209,7 +209,7 @@ ap.add_argument('-sub_folder', required=False, help='Name of the folder where th
 ap.add_argument('-start',      required=False, help='Start frame number',                           type=str,  default='0')
 ap.add_argument('-fps',        required=False, help='Animation frame rate',                         type=str,  default='40')
 ap.add_argument('-num_files',  required=False, help='Number of files to process',                   type=int,  default=-1)
-ap.add_argument('-num_proc',   required=False, help='Number of processors',                         type=int,  default=8)
+ap.add_argument('-num_proc',   required=False,  help='Number of processors',                         type=int,  default=8)
 ## ------------------- DEFINE REQUIRED ARGUMENTS
 ap.add_argument('-base_path',  required=True, help='File path to data',    type=str)
 ap.add_argument('-pre_name',   required=True, help='Name of figures',      type=str)
