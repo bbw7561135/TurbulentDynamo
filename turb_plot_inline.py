@@ -4,8 +4,13 @@
     
     EXAMPLE: 
     turb_plot_inline.py 
-        -base_path /Users/dukekriel/Documents/University/Year4Sem2/Summer-19/ANU-Turbulence-Dynamo/dyna288_Bk10 
-        -pre_name dyna288_Bk10
+        (required)
+            -base_path      /Users/dukekriel/Documents/University/Year4Sem2/Summer-19/ANU-Turbulence-Dynamo/dyna288_Bk10 
+            -pre_name       dyna288_Bk10
+        (optional)
+            -debug          False
+            -vis_folder     visFiles
+            -xmin           3.2
 '''
 
 ##################################################################
@@ -20,14 +25,18 @@ import matplotlib.pyplot as plt
 #################################################################
 ## PREPARE TERMINAL/WORKSPACE/CODE
 #################################################################
-os.system('clear')                  # clear terminal window
-plt.close('all')                    # close all pre-existing plots
-mpl.style.use('classic')            # plot in classic style
+os.system('clear')       # clear terminal window
+plt.close('all')         # close all pre-existing plots
+mpl.style.use('classic') # plot in classic style
 
 ##################################################################
 ## FUNCTIONS
 ##################################################################
 def stringChop(var_string, var_remove):
+    ''' stringChop
+    PURPOSE / OUTPUT:
+        Remove the occurance of the string 'var_remove' at both the start and end of the string 'var_string'.
+    '''
     if var_string.endswith(var_remove):
         var_string = var_string[:-len(var_remove)]
     if var_string.startswith(var_remove):
@@ -35,6 +44,12 @@ def stringChop(var_string, var_remove):
     return var_string
 
 def createFolder(folder_name):
+    ''' createFolder
+    PURPOSE:
+        Create the folder passed as a filepath to inside the folder.
+    OUTPUT:
+        Commandline output of the success/failure status of creating the folder.
+    '''
     if not(os.path.exists(folder_name)):
         os.makedirs(folder_name)
         print('SUCCESS: \n\tFolder created. \n\t' + folder_name)
@@ -44,21 +59,36 @@ def createFolder(folder_name):
         print(' ')
 
 def createFilePath(names):
-    return ('/'.join(names) + '/')
+    ''' creatFilePath
+    PURPOSE / OUTPUT:
+        Turn an ordered list of names and concatinate them into a filepath.
+    '''
+    return ('/'.join([x for x in names if x != '']))
 
-def loadData(directory):
+def loadTurbDat(filepath):
+    ''' loadTurbDat
+    PURPOSE:
+        Load and process the Turb.dat data located in 'filepath'. 
+    OUTPUT:
+        x (time), y data and the name of the y-axis data
+    '''
     global t_eddy, bool_norm_dat, var_x, var_y
     ## load data
-    data_split = [x.split() for x in open(directory).readlines()]
+    print('Loading data...')
+    data_split = []
+    with open(createFilePath([filepath, 'Turb.dat'])) as file_lines:
+        for line in file_lines:
+            data_split.append(line.split())
     ## save maximum number of columns in a row. less indicated rows stores a message.
     len_thresh = len(data_split[0]) # ignore extra lines (len < len_thresh) resulting from restarting the simulation
-    ## save data
+    ## save x and y data
     data_x = []
     data_y = []
+    print('Processing data...')
     for row in data_split[1:]:
         if len(row)  == len_thresh:
             if ((row[var_x][0]  == '#') or (row[var_y][0]  == '#')):
-                break
+                break # if there is no data in the row
             data_x.append(float(row[var_x]) / t_eddy) # normalise time-domain
             data_y.append(float(row[var_y]))
     if bool_norm_dat:
@@ -73,27 +103,22 @@ def loadData(directory):
 global bool_debug_mode, filepath_base
 ap = argparse.ArgumentParser(description='A bunch of input arguments')
 ## ------------------- DEFINE OPTIONAL ARGUMENTS
-ap.add_argument('-vis_folder', required=False, help='Name of the plot folder',                      type=str,  default='visFiles')
-ap.add_argument('-xmin',       required=False, help='Minimum x value which analysis is performed',  type=float, default=3.2)
-ap.add_argument('-debug',      required=False, help='Debug mode',                                   type=bool,  default=False)
+ap.add_argument('-debug',      type=bool,  default=False,      required=False, help='Debug mode')
+ap.add_argument('-vis_folder', type=str,   default='visFiles', required=False, help='Name of the plot folder')
+ap.add_argument('-xmin',       type=float, default=3.2,        required=False, help='Min. x value for analysis')
 ## ------------------- DEFINE REQUIRED ARGUMENTS
-ap.add_argument('-base_path',  required=True,  help='Filepath to the base folder', type=str)
-ap.add_argument('-pre_name',   required=True,  help='Name of figures',             type=str)
-## ------------------- OPEN ARGUMENTS
+ap.add_argument('-base_path',  type=str,   required=True,  help='Filepath to the base folder')
+ap.add_argument('-pre_name',   type=str,   required=True,  help='Name of figures')
+## ---------------------------- OPEN ARGUMENTS
 args = vars(ap.parse_args())
-## ------------------- SAVE BOOLEANS
-## enable/disable debug mode
-if (args['debug'] == True):
-    bool_debug_mode = True
-else:
-    bool_debug_mode = False
-## ------------------- SAVE FILEPATH PARAMETERS
+## ---------------------------- SAVE VARIABLES
+bool_debug_mode = args['debug']     # enable/disable debug mode
+## ---------------------------- FILEPATH PARAMETERS
 filepath_base = args['base_path']   # home directory
 folder_plot   = args['vis_folder']  # subfolder where animation and plots will be saved
 pre_name      = args['pre_name']    # pre_name of figures
-## ------------------- SAVE ANALYSIS DOMAIN
-x_min = args['xmin']
-## ------------------- ADJUST ARGUMENTS
+x_min         = args['xmin']
+## ---------------------------- ADJUST ARGUMENTS
 ## remove the trailing '/' from the input filepath
 if filepath_base.endswith('/'):
     filepath_base = filepath_base[:-1]
@@ -102,7 +127,7 @@ filepath_base = filepath_base.replace('//', '/')
 ## remove '/' from start and end of variables
 folder_plot   = stringChop(folder_plot, '/')
 pre_name      = stringChop(pre_name, '/')
-## ------------------- START CODE
+## ---------------------------- START CODE
 print('Began running the spectra plotting code in the filepath: \n\t' + filepath_base)
 print('Visualising folder: ' + folder_plot)
 print('Figure name: ' + pre_name)
@@ -113,10 +138,7 @@ print(' ')
 ##################################################################
 global bool_norm_dat
 global t_eddy, var_x, var_y
-## constants
-t_eddy           = 5 # L/(2*Mach)
-var_x            = 0
-label_x          = r'$t/t_{\mathregular{eddy}}$'
+## ------------------- GET USER INPUT
 ## accept input for the y-axis variable
 print('Which variable do you want to plot on the y-axis?')
 print('\tOptions: 6 (E_kin), 8 (rms_Mach), 29 (E_mag)')
@@ -125,6 +147,10 @@ while ((var_y != 6) and (var_y != 8) and (var_y != 29)):
     print('\tInvalid input. Choose an option from: 6 (E_kin), 8 (rms_Mach), 29 (E_mag)')
     var_y = int(input('\tInput: '))
 print(' ')
+## constants
+t_eddy           = 5 # L/(2*Mach)
+var_x            = 0
+label_x          = r'$t/t_{\mathregular{eddy}}$'
 ## initialise variables
 var_scale        = ''
 label_y          = r''
@@ -151,7 +177,6 @@ else:
 ##################################################################
 ## INITIALISING VARIABLES
 ##################################################################
-filepath_data = (filepath_base + '/Turb.dat')
 filepath_plot = createFilePath([filepath_base, folder_plot])
 ## create folder where the figure will be saved
 createFolder(filepath_plot)
@@ -161,9 +186,9 @@ fig = plt.figure(figsize = (10, 7), dpi = 100)
 ##################################################################
 ## LOADING DATA
 ##################################################################
-print('Loading data...')
-data_x, data_y, var_name = loadData(filepath_data)
+data_x, data_y, var_name = loadTurbDat(filepath_base)
 ## save analysis data
+print('Saving analysis data...')
 index_min = min(enumerate(data_x), key = lambda x: abs(x_min - x[1]))[0]
 fit_x     = list(map(float, data_x[index_min:]))
 fit_y     = list(map(float, data_y[index_min:]))
@@ -178,6 +203,7 @@ plt.plot(data_x, data_y, 'k')
 ## ADD REGRESSION / AVERAGING
 ##################################################################
 ## plot regression analysis
+print('Plotting annotations...')
 if (bool_regression and (max(data_x) > x_min)):
     log_y = np.log(fit_y)
     m, c  = np.polyfit(fit_x, log_y, 1)    # fit log(y) = m*log(x) + c
@@ -222,7 +248,7 @@ plt.yscale(var_scale)
 ## SAVE IMAGE
 ##################################################################
 print('Saving the figure...')
-name_fig = filepath_plot + pre_name + '_turb_' + var_name + '.png'
+name_fig = createFilePath([filepath_plot, (pre_name + '_turb_' + var_name + '.png')])
 plt.savefig(name_fig)
 print('Figure saved: ' + name_fig)
 
