@@ -4,13 +4,10 @@
     
     EXAMPLE: 
     slice_plot_inline.py 
-        -base_path /Users/dukekriel/Documents/University/Year4Sem2/Summer-19/ANU-Turbulence-Dynamo/dyna288_Bk10 
-        -pre_name dyna288_Bk10 
-        -num_proc 4
-
-    OTHER: 
-    Compiling flash4 command:
-        ./setup StirFromFileDynamo -3d -auto -objdir=objStirFromFileDynamo/ -nxb=36 -nyb=36 -nzb=48 +ug --with-unit=physics/Hydro/HydroMain/split/Bouchut/IsothermalSoundSpeedOne --without-unit=PhysicalConstants +parallelIO
+        (required)
+            -base_path /Users/dukekriel/Documents/University/Year4Sem2/Summer-19/ANU-Turbulence-Dynamo/dyna288_Bk10 
+            -pre_name dyna288_Bk10
+        (optional)
 '''
 
 ##################################################################
@@ -75,6 +72,7 @@ def calcMinMax():
     var_max = np.nan
     for var_iter in range(num_figs):
         ## load data 
+        print('Analysing data...' + '\t%0.3f%% complete'%(100 * var_iter/num_figs))
         file_name = filepath_data + '/' + file_names[var_iter] # create the filepath to the file
         f         = h5py.File(file_name, 'r')                  # load slice file
         names     = [s for s in list(f.keys()) if 'mag' in s]  # save all keys that contain 'mag'
@@ -160,41 +158,11 @@ def worker(var_iter):
     time_point = np.array(f['time']) / t_eddy               # save time point
     if bool_debug_mode:
         print('Looking at:' + file_name)
-    names      = [s for s in list(f.keys()) if 'mag' in s]  # save all keys that contain 'mag'
+    names      = [s for s in list(f.keys()) if 'mag' in s]  # save all keys that contain 'mag' TODO: make 'mag' into variable
     data       = sum(np.array(f[i])**2 for i in names)      # determine the magnetic-field magnitude
     data      /= plasma_beta                                # normalise the magnitude
     f.close()                                               # close the file stream
     data_queue.put([data, time_point, var_iter])            # send data to be plot
-
-def reformatField(field, nx=None, procs=None):
-    """
-    AUTHORS: 
-        James Beattie (version 26 November 2019)
-        Neco Kriel (Editing)
-    PURPOSE:
-        This code reformats the FLASH block / xyz format into xyz format for processing
-    INPUTS:
-        field   — the FLASH field
-        nx      - number of blocks per spatial direction (stored in an array [x, y, z])
-        procs   - number of cores per spatial direction (stored in an array [i, j, k])
-    OUTPUT:
-        field_sorted - the organised 2D field
-    """
-    # interpret the function arguments
-    iprocs = procs[0]
-    jprocs = procs[1]
-    kprocs = procs[2]
-    nxb = nx[0]
-    nyb = nx[1]
-    nzb = nx[2]
-    # initialise the output field
-    field_sorted = np.zeros([nzb*kprocs, nxb*iprocs, nyb*jprocs])
-    # sort and store the unsorted field into the output field
-    for k in range(kprocs):
-        for j in range(jprocs):
-            for i in range(iprocs):
-                field_sorted[k*nzb:(k+1)*nzb, i*nxb:(i+1)*nxb, j*nyb:(j+1)*nyb] = field[k + j*iprocs + i*(jprocs*iprocs)]
-    return field_sorted
 
 ##################################################################
 ## INPUT COMMAND LINE ARGUMENTS
@@ -209,7 +177,7 @@ ap.add_argument('-sub_folder', required=False, help='Name of the folder where th
 ap.add_argument('-start',      required=False, help='Start frame number',                           type=str,  default='0')
 ap.add_argument('-fps',        required=False, help='Animation frame rate',                         type=str,  default='40')
 ap.add_argument('-num_files',  required=False, help='Number of files to process',                   type=int,  default=-1)
-ap.add_argument('-num_proc',   required=False,  help='Number of processors',                         type=int,  default=8)
+ap.add_argument('-num_proc',   required=False,  help='Number of processors',                        type=int,  default=8)
 ## ------------------- DEFINE REQUIRED ARGUMENTS
 ap.add_argument('-base_path',  required=True, help='File path to data',    type=str)
 ap.add_argument('-pre_name',   required=True, help='Name of figures',      type=str)
@@ -217,15 +185,9 @@ ap.add_argument('-pre_name',   required=True, help='Name of figures',      type=
 args = vars(ap.parse_args())
 ## ------------------- SAVE BOOLEANS
 ## enable/disable debug mode
-if (args['debug'] == True):
-    bool_debug_mode = True
-else:
-    bool_debug_mode = False
+bool_debug_mode = args['debug']
 ## enable/disable animating only mode
-if (args['ani_only'] == True):
-    bool_ani_only_mode = True
-else:
-    bool_ani_only_mode = False
+bool_ani_only_mode = args['ani_only']
 ## ------------------- SAVE ANIMATION PARAMETERS
 ani_start     = args['start'] # starting animation frame
 ani_fps       = args['fps']   # animation's fps
@@ -321,7 +283,7 @@ if not(bool_ani_only_mode):
 ## ANIMATE IMAGES
 ##################################################################
 filepath_input  = (filepath_plot + name_fig + '%06d.png')
-filepath_output = (filepath_plot + '../' + name_vid + '.mp4')
+filepath_output = (filepath_plot + '../' + name_vid + '_2D.mp4')
 ffmpeg_input    = ('ffmpeg -start_number '          + ani_start + 
                 ' -i '                              + filepath_input + 
                 ' -vb 40M -framerate '              + ani_fps + 

@@ -4,8 +4,25 @@
     
     EXAMPLE: 
     hdf5_plot_inline.py
-        -base_path /Users/dukekriel/Documents/University/Year4Sem2/Summer-19/ANU-Turbulence-Dynamo/dyna288_Bk10 
-        -pre_name dyna288_Bk10
+        (required)
+            -base_path      /Users/dukekriel/Documents/University/Year4Sem2/Summer-19/ANU-Turbulence-Dynamo/dyna288_Bk10 
+            -pre_name       dyna288_Bk10
+        (optional)
+            -debug          False
+            -ani_only       False
+            -sub_folder     hdf5Files
+            -vis_folder     visFiles
+            -file_type      mag
+            -plot_dim       3D
+            -ani_start      0
+            -ani_fps        40
+            -file_start     0
+            -file_end       np.Inf
+            -num_proc       8
+    
+    OTHER: 
+    Compiling flash4 command:
+        ./setup StirFromFileDynamo -3d -auto -objdir=objStirFromFileDynamo/ -nxb=36 -nyb=36 -nzb=48 +ug --with-unit=physics/Hydro/HydroMain/split/Bouchut/IsothermalSoundSpeedOne --without-unit=PhysicalConstants +parallelIO
 '''
 
 ##################################################################
@@ -34,6 +51,10 @@ mpl.style.use('classic')            # plot in classic style
 ## FUNCTION
 ##################################################################
 def stringChop(var_string, var_remove):
+    ''' stringChop
+    PURPOSE / OUTPUT:
+        Remove the occurance of the string 'var_remove' at both the start and end of the string 'var_string'.
+    '''
     if var_string.endswith(var_remove):
         var_string = var_string[:-len(var_remove)]
     if var_string.startswith(var_remove):
@@ -41,24 +62,34 @@ def stringChop(var_string, var_remove):
     return var_string
 
 def meetCondition(element):
-    global bool_debug_mode, file_max
+    global bool_debug_mode, file_end
     element_start_right = bool(element.startswith('Turb_hdf5_plt_cnt_'))
-    if element_start_right:
+    if (element_start_right and not(element.endswith('.dat'))):
         print(element)
         print(element.split('_')[-1])
         iter_number = int(element.split('_')[-1])
         if bool_debug_mode:
             return bool(element_start_right and (iter_number > 0) and (iter_number <= 5))
-        elif file_max != np.Inf:
-            return bool(element_start_right and (iter_number > 0) and (iter_number <= file_max))
+        elif file_end != np.Inf:
+            return bool(element_start_right and (iter_number > 0) and (iter_number <= file_end))
         else:
             return bool(element_start_right and (iter_number > 0))
     return False
 
 def createFilePath(paths):
-    return ('/'.join(paths) + '/')
+    ''' creatFilePath
+    PURPOSE / OUTPUT:
+        Turn an ordered list of names and concatinate them into a filepath.
+    '''
+    return ('/'.join(paths))
 
 def createFolder(folder_name):
+    ''' createFolder
+    PURPOSE:
+        Create the folder passed as a filepath to inside the folder.
+    OUTPUT:
+        Commandline output of the success/failure status of creating the folder.
+    '''
     if not(os.path.exists(folder_name)):
         os.makedirs(folder_name)
         print('SUCCESS: \n\tFolder created. \n\t' + folder_name)
@@ -68,7 +99,7 @@ def createFolder(folder_name):
         print(' ')
 
 def reformatField(field, nx=None, procs=None):
-    """
+    """ reformatField
     AUTHORS: 
         James Beattie (version 26 November 2019)
         Neco Kriel (Editing)
@@ -100,11 +131,11 @@ def reformatField(field, nx=None, procs=None):
 def loadData(filepath):
     global bool_debug_mode
     global num_blocks, num_procs
-    global type_var
+    global file_type
     f     = h5py.File(filepath, 'r')  # open hdf5 file stream: [iProc*jProc*kProc, nzb, nyb, nxb]
-    names = [s for s in list(f.keys()) if s.startswith(type_var)] # save all keys containing the string type_var
+    names = [s for s in list(f.keys()) if s.startswith(file_type)] # save all keys containing the string file_type
     data  = sum(np.array(f[i])**2 for i in names)                 # determine the variable's magnitude
-    if type_var == 'mags': data /= plasma_beta                    # normalise the magnitude
+    if file_type == 'mags': data /= plasma_beta                    # normalise the magnitude
     if bool_debug_mode: 
         print('--------- All the keys stored in the file:\n\t' + '\n\t'.join(list(f.keys()))) # print keys
         print('--------- All keys that are used: ' + str(names))
@@ -122,15 +153,13 @@ def plotData_3D(data, temp_iter):
     ax = fig.gca(projection='3d')
     ## plot data as contours
     print('\tPlotting contours...')
-    lev_exp = np.arange(np.floor(np.log10(col_map_min)-1),
-                        np.ceil(np.log10(col_map_max)+1), 0.5)
+    lev_exp = np.arange(np.floor(np.log10(col_map_min)-1), # colour lower bound
+                        np.ceil(np.log10(col_map_max)+1),  # colour upper bound
+                        1/2) # size of colour devisions per 10^n bracket
     levs = np.power(10, lev_exp)
-    cbar_plot = ax.contourf(data[0, :, :], X, Y, levs, zdir='x', cmap='plasma', offset=0, alpha=1, 
-                norm=mpl.colors.LogNorm())
-    ax.contourf(X, data[:, 0, :], Y, levs, zdir='y', cmap='plasma', offset=1, alpha=1,
-                norm=mpl.colors.LogNorm())
-    ax.contourf(X, Y, data[:, :, 0], levs, zdir='z', cmap='plasma', offset=1, alpha=1,
-                norm=mpl.colors.LogNorm())
+    ax.contourf(X, Y, data[0, :, :,], levs, zdir='z', cmap='plasma', offset=1, alpha=1, norm=mpl.colors.LogNorm()) # top face
+    ax.contourf(data[:, :, 0], X, Y, levs, zdir='x', cmap='plasma', offset=0, alpha=1, norm=mpl.colors.LogNorm()) # right face
+    cbar_plot = ax.contourf(X, data[:, 0, :],  Y, levs, zdir='y', cmap='plasma', offset=1, alpha=1, norm=mpl.colors.LogNorm()) # left face
     print('\tAnotating plot...')
     plt.tight_layout()
     ## set figure range
@@ -152,17 +181,18 @@ def plotData_3D(data, temp_iter):
     text.set_font_properties(font)
     ## save plot
     print('\tSaving 3D figure...')
-    plt.savefig(filepath_plot + pre_name +'_'+ type_var +'_'+ temp_iter + '_3D.png')
+    plt.savefig(createFilePath([filepath_plot, (pre_name +'_'+ file_type +'_'+ temp_iter + '_3D.png')]))
     print('\tSaved 3D figure: %i.'%int(temp_iter) + '  \t%0.3f%% complete\n'%(100 * int(temp_iter)/len(file_names)))
     plt.close()
 
 def plotData_2D(data, temp_iter):
     global col_map_min, col_map_max
+    global filepath_plot, pre_name, file_type
     ## initialise the figure
     fig = plt.figure(figsize=(10, 7), dpi=100)
     ax  = fig.add_axes([0.1, 0.1, 0.8, 0.8])
     ## plot data
-    plt.imshow(data[0, :, :], 
+    plt.imshow(data,
             extent=(0.0, 1.0, 0.0, 1.0),
             interpolation='none',
             cmap='plasma',
@@ -190,52 +220,55 @@ def plotData_2D(data, temp_iter):
     plt.minorticks_on()
     ## save plot
     print('\tSaving 2D figure...')
-    plt.savefig(filepath_plot + pre_name +'_'+ type_var +'_'+ temp_iter + '_2D.png')
+    plt.savefig(createFilePath([filepath_plot, (pre_name +'_'+ file_type +'_'+ temp_iter + '_2D.png')]))
     print('\tSaved 2D figure: %i.'%int(temp_iter) + '  \t%0.3f%% complete\n'%(100 * int(temp_iter)/len(file_names)))
     plt.close()
 
 ##################################################################
 ## INPUT COMMAND LINE ARGUMENTS
 ##################################################################
-global file_max, bool_debug_mode, num_proc
+global file_end, bool_debug_mode, num_proc
+global pre_name, file_type
 ap = argparse.ArgumentParser(description='A bunch of input arguments')
 ## ------------------- DEFINE OPTIONAL ARGUMENTS
 ap.add_argument('-debug',      type=bool, default=False,        required=False, help='Debug mode')
 ap.add_argument('-ani_only',   type=bool, default=False,        required=False, help='Only animate currently existing plots')
 ap.add_argument('-sub_folder', type=str,  default='hdf5Files',  required=False, help='Name of the data folder')
 ap.add_argument('-vis_folder', type=str,  default='visFiles',   required=False, help='Name of the plot folder')
-ap.add_argument('-type_var',   type=str,  default='mag',        required=False, help='Variable to be plotted')
-ap.add_argument('-num_dims',   type=str,  default='3D',         required=False, help='Number of dimensions to plot')
-ap.add_argument('-start',      type=str,  default='0',          required=False, help='Start frame number')
-ap.add_argument('-fps',        type=str,  default='40',         required=False, help='Animation frame rate')
-ap.add_argument('-num_files',  type=int,  default=np.Inf,       required=False, help='Number of files to process')
+ap.add_argument('-file_type',  type=str,  default='mag',        required=False, help='Variable to be plotted')
+ap.add_argument('-plot_dim',   type=str,  default='3D',         required=False, help='Number of dimensions to plot')
+ap.add_argument('-ani_start',  type=str,  default='0',          required=False, help='Start frame number')
+ap.add_argument('-ani_fps',    type=str,  default='40',         required=False, help='Animation frame rate')
+ap.add_argument('-file_start', type=int,  default=0,            required=False, help='File number to start plotting from')
+ap.add_argument('-file_end',   type=int,  default=np.Inf,       required=False, help='Number of files to process')
 ap.add_argument('-num_proc',   type=int,  default=8,            required=False, help='Number of processors')
 ## ------------------- DEFINE REQUIRED ARGUMENTS
 ap.add_argument('-base_path',  type=str,  required=True, help='File path to data')
 ap.add_argument('-pre_name',   type=str,  required=True, help='Name of figures')
 ## ------------------- OPEN ARGUMENTS
 args = vars(ap.parse_args())
-## ------------------- SAVE BOOLEANS
+## ---------------------------- SAVE BOOLEANS
 bool_debug_mode = args['debug']
-bool_ani_only = args['ani_only']
-## ------------------- SAVE ANIMATION PARAMETERS
-type_var  = args['type_var']
-num_dims  = args['num_dims']
-ani_start = args['start'] # starting animation frame
-ani_fps   = args['fps']   # animation's fps
+bool_ani_only   = args['ani_only']
+## ---------------------------- SAVE ANIMATION PARAMETERS
+file_type       = args['file_type']
+plot_dim        = args['plot_dim']
+ani_start       = args['ani_start'] # starting animation frame
+ani_fps         = args['ani_fps']   # animation's fps
 ## the number of plots to process
-file_max  = args['num_files']
-## ------------------- SAVE FILEPATH PARAMETERS
-filepath_base = args['base_path']  # home directory of data
-folder_vis    = args['vis_folder'] # subfolder where animation and plots will be saved
-folder_sub    = args['sub_folder'] # sub-subfolder where data is stored's name
-pre_name      = args['pre_name']   # name attached to the front of figures and animation
-num_proc      = args['num_proc']   # number of processors
-## ------------------- ADJUST ARGUMENTS
+file_start      = args['file_start']
+file_end        = args['file_end']
+## ---------------------------- SAVE FILEPATH PARAMETERS
+filepath_base   = args['base_path']  # home directory of data
+folder_vis      = args['vis_folder'] # subfolder where animation and plots will be saved
+folder_sub      = args['sub_folder'] # sub-subfolder where data is stored's name
+pre_name        = args['pre_name']   # name attached to the front of figures and animation
+num_proc        = args['num_proc']   # number of processors
+## ---------------------------- ADJUST ARGUMENTS
 ## remove the trailing '/' from the input filepath
 if filepath_base.endswith('/'):
     filepath_base = filepath_base[:-1]
-## replace '//' with '/'
+## replace any '//' with '/'
 filepath_base = filepath_base.replace('//', '/')
 ## remove '/' from variables
 folder_vis = stringChop(folder_vis, '/')
@@ -245,18 +278,18 @@ pre_name   = stringChop(pre_name,   '/')
 ##################################################################
 ## SETUP VARIABLES
 ##################################################################
-global num_blocks, num_procs
+global num_blocks, num_procs, filepath_plot
 t_eddy      = 5
 plasma_beta = 1e-10
-num_blocks  = [48, 36, 36]
-num_procs   = [6, 8, 8]
+num_blocks  = [48, 36, 36] # TODO: make default variable
+num_procs   = [6, 8, 8] # TODO: make default variable
 
 filepath_data = createFilePath([filepath_base, folder_sub]) # where data is stored
-filepath_plot = createFilePath([filepath_base, folder_vis, 'plotHDF5_' + num_dims]) # where plots will be saved
+filepath_plot = createFilePath([filepath_base, folder_vis, 'plotHDF5_' + plot_dim]) # where plots will be saved
 print('The base directory is:\n\t' + filepath_base)
 print('The directory to the slice data is:\n\t' + filepath_data)
 print('The directory to where the figure will be saved is:\n\t' + filepath_plot)
-print('The chosen variable to plot:\n\t' + type_var)
+print('The chosen variable to plot:\n\t' + file_type)
 print(' ')
 ## create folder where plots are saved
 createFolder(filepath_plot)
@@ -274,7 +307,7 @@ global col_map_min, col_map_max
 col_map_min = np.nan
 col_map_max = np.nan
 if not(bool_ani_only):
-    temp_data = loadData(filepath_data + file_names[-1])
+    temp_data = loadData(createFilePath([filepath_data, file_names[-1]]))
     col_map_min = np.nanmin([col_map_min, np.nanmin(temp_data[0, :, :])])
     col_map_max = np.nanmax([col_map_max, np.nanmax(temp_data[0, :, :])])
     print('Colour map domain: \n\tmin=' + str(col_map_min) + '\n\tmax='+str(col_map_max))
@@ -290,21 +323,21 @@ if not(bool_ani_only):
     for file_name in file_names:
         ## process data
         print('Loading data...')
-        temp_data = loadData(filepath_data + file_name)
+        temp_data = loadData(createFilePath([filepath_data, file_name]))
         ## plot and save data
-        if num_dims == '3D':
+        if plot_dim == '3D':
             print('Plotting 3D data...')
             plotData_3D(temp_data, file_name.split('_')[-1])
         else:
             print('Plotting 2D data...')
-            plotData_2D(temp_data, file_name.split('_')[-1])
+            plotData_2D(temp_data[0, :, :], file_name.split('_')[-1])
     print('Finished plotting...')
 
 ##################################################################
 ## ANIMATING CODE
 ##################################################################
-filepath_input  = (filepath_plot + pre_name +'_'+ type_var + '_%04d_' + num_dims + '.png')
-filepath_output = (filepath_plot + '../' + pre_name +'_ani_'+ type_var + '_' + num_dims + '.mp4')
+filepath_input  = createFilePath([filepath_plot, (pre_name +'_'+ file_type + '_%04d_' + plot_dim + '.png')])
+filepath_output = createFilePath([filepath_plot, ('../' + pre_name +'_ani_'+ file_type + '_' + plot_dim + '.mp4')])
 ffmpeg_input    = ('ffmpeg -start_number '          + ani_start + 
                 ' -i '                              + filepath_input + 
                 ' -vb 40M -framerate '              + ani_fps + 

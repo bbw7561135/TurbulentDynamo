@@ -39,13 +39,11 @@ def meetsFirstCondition(element):
 
 def meetsSecondCondition(element):
     global file_start, file_end
-    ## accept files that look like: Turb_hdf5_plt_cnt_*.dat
-    if (element.startswith('Turb_hdf5_plt_cnt_') and element.endswith('.dat')):
+    ## accept files that look like: Turb_hdf5_plt_cnt_*(mags.dat or vels.dat)
+    if (element.startswith('Turb_hdf5_plt_cnt_') and (element.endswith('mags.dat') or element.endswith('vels.dat'))):
         ## check that the file is within the domain range
         bool_domain_right = bool(int(element.split('_')[4]) >= file_start) and (int(element.split('_')[4]) <= file_end)
-        ## check that the file is magnetic or velocity data
-        bool_spectra = (element.__contains__('mags') or element.__contains__('vels'))
-        return (bool_spectra and bool_domain_right)
+        return bool_domain_right
     else:
         return False
 
@@ -66,10 +64,10 @@ ap.add_argument('-file_start', type=int,  default=0,      required=False, help='
 ap.add_argument('-file_end',   type=int,  default=np.Inf, required=False, help='File number to end processing from')
 ap.add_argument('-num_proc',   type=str,  default='8',    required=False, help='Number of processors')
 ## ------------------- DEFINE REQUIRED ARGUMENTS
-ap.add_argument('-base_path',  type=str,  required=True, help='Filepath to where files are located')
+ap.add_argument('-base_path',  type=str, required=True, help='Filepath to where files are located')
 ## ---------------------------- OPEN ARGUMENTS
 args = vars(ap.parse_args())
-## ---------------------------- SAVE ARGUMENTS
+## ---------------------------- SAVE PARAMETERS
 bool_check_only = args['check_only'] # only check for missing hdf5 spectra files
 filepath        = args['base_path']  # base filepath to data
 file_start      = args['file_start'] # first file to process

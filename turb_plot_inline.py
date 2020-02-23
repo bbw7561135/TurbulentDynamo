@@ -107,26 +107,26 @@ ap.add_argument('-debug',      type=bool,  default=False,      required=False, h
 ap.add_argument('-vis_folder', type=str,   default='visFiles', required=False, help='Name of the plot folder')
 ap.add_argument('-xmin',       type=float, default=3.2,        required=False, help='Min. x value for analysis')
 ## ------------------- DEFINE REQUIRED ARGUMENTS
-ap.add_argument('-base_path',  type=str,   required=True,  help='Filepath to the base folder')
-ap.add_argument('-pre_name',   type=str,   required=True,  help='Name of figures')
+ap.add_argument('-base_path',  type=str, required=True,  help='Filepath to the base folder')
+ap.add_argument('-pre_name',   type=str, required=True,  help='Name of figures')
 ## ---------------------------- OPEN ARGUMENTS
 args = vars(ap.parse_args())
-## ---------------------------- SAVE VARIABLES
+## ---------------------------- SAVE PARAMETERS
 bool_debug_mode = args['debug']     # enable/disable debug mode
 ## ---------------------------- FILEPATH PARAMETERS
-filepath_base = args['base_path']   # home directory
-folder_plot   = args['vis_folder']  # subfolder where animation and plots will be saved
-pre_name      = args['pre_name']    # pre_name of figures
-x_min         = args['xmin']
+filepath_base   = args['base_path']   # home directory
+folder_plot     = args['vis_folder']  # subfolder where animation and plots will be saved
+pre_name        = args['pre_name']    # pre_name of figures
+x_min           = args['xmin']
 ## ---------------------------- ADJUST ARGUMENTS
 ## remove the trailing '/' from the input filepath
 if filepath_base.endswith('/'):
     filepath_base = filepath_base[:-1]
 ## replace '//' with '/'
-filepath_base = filepath_base.replace('//', '/')
+filepath_base   = filepath_base.replace('//', '/')
 ## remove '/' from start and end of variables
-folder_plot   = stringChop(folder_plot, '/')
-pre_name      = stringChop(pre_name, '/')
+folder_plot     = stringChop(folder_plot, '/')
+pre_name        = stringChop(pre_name, '/')
 ## ---------------------------- START CODE
 print('Began running the spectra plotting code in the filepath: \n\t' + filepath_base)
 print('Visualising folder: ' + folder_plot)
