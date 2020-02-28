@@ -247,7 +247,7 @@ ap.add_argument('-base_path',  type=str,  required=True, help='File path to data
 ap.add_argument('-pre_name',   type=str,  required=True, help='Name of figures')
 ## ------------------- OPEN ARGUMENTS
 args = vars(ap.parse_args())
-## ---------------------------- SAVE BOOLEANS
+## ---------------------------- SAVE PARAMETERS
 bool_debug_mode = args['debug']
 bool_ani_only   = args['ani_only']
 ## ---------------------------- SAVE ANIMATION PARAMETERS

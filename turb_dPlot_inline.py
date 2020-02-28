@@ -76,27 +76,24 @@ def loadTurbDat(filepath):
     global t_eddy, bool_norm_dat, var_x, var_y
     ## load data
     print('Loading data...')
-    data_split = []
-    with open(createFilePath([filepath, 'Turb.dat'])) as file_lines:
-        for line in file_lines:
-            data_split.append(line.split())
-    ## save maximum number of columns in a row. less indicated rows stores a message.
-    len_thresh = len(data_split[0]) # ignore extra lines (len < len_thresh) resulting from restarting the simulation
+    filepath_turb = createFilePath([filepath, 'Turb.dat'])
+    first_line = open(filepath_turb).readline().split()
+    len_thresh = len(first_line)
     ## save x and y data
     data_x = []
     data_y = []
-    print('Processing data...')
-    for row in data_split[1:]:
-        if len(row)  == len_thresh:
-            if ((row[var_x][0]  == '#') or (row[var_y][0]  == '#')):
-                break # if there is no data in the row
-            data_x.append(float(row[var_x]) / t_eddy) # normalise time-domain
-            data_y.append(float(row[var_y]))
+    with open(filepath_turb) as file_lines:
+        for line in file_lines:
+            data_split = line.split()
+            if len(data_split)  == len_thresh:
+                if (not(data_split[var_x][0] == '#') and not(data_split[var_y][0] == '#')):
+                    data_x.append(float(data_split[var_x]) / t_eddy) # normalise time-domain
+                    data_y.append(float(data_split[var_y]))
     if bool_norm_dat:
         # y_data = var_y / var_y[1]
         data_y = [i / data_y[1] for i in data_y]
     ## return variables
-    return [data_x, data_y, data_split[0][var_y][4:]]
+    return [data_x, data_y, first_line[var_y][4:]]
 
 ##################################################################
 ## INPUT COMMAND LINE ARGUMENTS

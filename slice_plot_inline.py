@@ -5,9 +5,17 @@
     EXAMPLE: 
     slice_plot_inline.py 
         (required)
-            -base_path /Users/dukekriel/Documents/University/Year4Sem2/Summer-19/ANU-Turbulence-Dynamo/dyna288_Bk10 
-            -pre_name dyna288_Bk10
+            -base_path      /Users/dukekriel/Documents/University/Year4Sem2/Summer-19/ANU-Turbulence-Dynamo/dyna288_Bk10 
+            -pre_name       dyna288_Bk10
         (optional)
+            -ani_only       False
+            -debug          False
+            -vis_folder     visFiles
+            -sub_folder     sliceFiles
+            -ani_start      0
+            -ani_fps        40
+            -file_end       np.Inf
+            -num_proc       8
 '''
 
 ##################################################################
@@ -35,6 +43,10 @@ data_queue = mp.Queue()
 ## FUNCTIONS
 ##################################################################
 def stringChop(var_string, var_remove):
+    ''' stringChop
+    PURPOSE / OUTPUT:
+        Remove the occurance of the string 'var_remove' at both the start and end of the string 'var_string'.
+    '''
     if var_string.endswith(var_remove):
         var_string = var_string[:-len(var_remove)]
     if var_string.startswith(var_remove):
@@ -42,6 +54,12 @@ def stringChop(var_string, var_remove):
     return var_string
 
 def createFolder(folder_name):
+    ''' createFolder
+    PURPOSE:
+        Create the folder passed as a filepath to inside the folder.
+    OUTPUT:
+        Commandline output of the success/failure status of creating the folder.
+    '''
     if not(os.path.exists(folder_name)):
         os.makedirs(folder_name)
         print('SUCCESS: \n\tFolder created. \n\t' + folder_name)
@@ -54,6 +72,10 @@ def createCommand(commands):
     return (' '.join(commands))
 
 def createFilePath(paths):
+    ''' creatFilePath
+    PURPOSE / OUTPUT:
+        Turn an ordered list of names and concatinate them into a filepath.
+    '''
     return ('/'.join(paths) + '/')
 
 def meetCondition(element):
@@ -170,49 +192,44 @@ def worker(var_iter):
 global file_max, bool_debug_mode, num_proc
 ap = argparse.ArgumentParser(description='A bunch of input arguments')
 ## ------------------- DEFINE OPTIONAL ARGUMENTS
-ap.add_argument('-ani_only',   required=False, help='Debug mode',                                   type=bool, default=False)
-ap.add_argument('-debug',      required=False, help='Debug mode',                                   type=bool, default=False)
-ap.add_argument('-vis_folder', required=False, help='Name of the plot folder',                      type=str,  default='visFiles')
-ap.add_argument('-sub_folder', required=False, help='Name of the folder where the data is stored',  type=str,  default='sliceFiles')
-ap.add_argument('-start',      required=False, help='Start frame number',                           type=str,  default='0')
-ap.add_argument('-fps',        required=False, help='Animation frame rate',                         type=str,  default='40')
-ap.add_argument('-num_files',  required=False, help='Number of files to process',                   type=int,  default=-1)
-ap.add_argument('-num_proc',   required=False,  help='Number of processors',                        type=int,  default=8)
+ap.add_argument('-ani_only',   type=bool, default=False,        required=False, help='Animate only')
+ap.add_argument('-debug',      type=bool, default=False,        required=False, help='Debug mode')
+ap.add_argument('-vis_folder', type=str,  default='visFiles',   required=False, help='Name of the plot folder')
+ap.add_argument('-sub_folder', type=str,  default='sliceFiles', required=False, help='Name of the folder where the data is stored')
+ap.add_argument('-ani_start',  type=str,  default='0',          required=False, help='Start frame number')
+ap.add_argument('-ani_fps',    type=str,  default='40',         required=False, help='Animation frame rate')
+ap.add_argument('-file_end',   type=int,  default=np.Inf,       required=False, help='Number of files to process')
+ap.add_argument('-num_proc',   type=int,  default=8,            required=False, help='Number of processors')
 ## ------------------- DEFINE REQUIRED ARGUMENTS
-ap.add_argument('-base_path',  required=True, help='File path to data',    type=str)
-ap.add_argument('-pre_name',   required=True, help='Name of figures',      type=str)
+ap.add_argument('-base_path',  type=str, required=True, help='File path to data')
+ap.add_argument('-pre_name',   type=str, required=True, help='Name of figures')
 ## ------------------- OPEN ARGUMENTS
 args = vars(ap.parse_args())
-## ------------------- SAVE BOOLEANS
-## enable/disable debug mode
-bool_debug_mode = args['debug']
-## enable/disable animating only mode
-bool_ani_only_mode = args['ani_only']
-## ------------------- SAVE ANIMATION PARAMETERS
-ani_start     = args['start'] # starting animation frame
-ani_fps       = args['fps']   # animation's fps
+## ---------------------------- SAVE PARAMETERS
+bool_debug_mode    = args['debug']    # enable/disable debug mode
+bool_ani_only_mode = args['ani_only'] # enable/disable animating only mode
+## ---------------------------- SAVE ANIMATION PARAMETERS
+ani_start     = args['ani_start']     # starting animation frame
+ani_fps       = args['ani_fps']       # animation's fps
 ## the number of plots to process
-if (args['num_files'] < 0):
-    file_max = np.Inf
-else:
-    file_max = args['num_files']
-## ------------------- SAVE FILEPATH PARAMETERS
-filepath_base = args['base_path']  # home directory of data
-folder_vis    = args['vis_folder'] # subfolder where animation and plots will be saved
-folder_sub    = args['sub_folder'] # sub-subfolder where data is stored's name
-pre_name      = args['pre_name']   # name attached to the front of figures and animation
-num_proc      = args['num_proc']   # number of processors
-## ------------------- ADJUST ARGUMENTS
+file_max      = args['file_end']
+## ---------------------------- SAVE FILEPATH PARAMETERS
+filepath_base = args['base_path']     # home directory of data
+folder_vis    = args['vis_folder']    # subfolder where animation and plots will be saved
+folder_sub    = args['sub_folder']    # sub-subfolder where data is stored's name
+pre_name      = args['pre_name']      # name attached to the front of figures and animation
+num_proc      = args['num_proc']      # number of processors
+## ---------------------------- ADJUST ARGUMENTS
 ## remove the trailing '/' from the input filepath
 if filepath_base.endswith('/'):
     filepath_base = filepath_base[:-1]
-## replace '//' with '/'
+## replace any '//' with '/'
 filepath_base = filepath_base.replace('//', '/')
 ## remove '/' from variables
 folder_vis    = stringChop(folder_vis, '/')
 folder_sub    = stringChop(folder_sub, '/')
 pre_name      = stringChop(pre_name, '/')
-## ------------------- START CODE
+## ---------------------------- START CODE
 print("Began running the slice code in folder: \n\t" + filepath_base)
 print('Visualising folder: ' + folder_vis)
 print('Figure name: ' + pre_name)
