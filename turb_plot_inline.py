@@ -32,6 +32,20 @@ mpl.style.use('classic') # plot in classic style
 ##################################################################
 ## FUNCTIONS
 ##################################################################
+def str2bool(v):
+    '''
+    FROM:
+        https://stackoverflow.com/questions/15008758/parsing-boolean-values-with-argparse
+    '''
+    if isinstance(v, bool):
+        return v
+    if v.lower() in ('yes', 'true', 't', 'y', '1'):
+        return True
+    elif v.lower() in ('no', 'false', 'f', 'n', '0'):
+        return False
+    else:
+        raise argparse.ArgumentTypeError('Boolean value expected.')
+
 def stringChop(var_string, var_remove):
     ''' stringChop
     PURPOSE / OUTPUT:
@@ -100,9 +114,9 @@ def loadTurbDat(filepath):
 global bool_debug_mode, filepath_base
 ap = argparse.ArgumentParser(description='A bunch of input arguments')
 ## ------------------- DEFINE OPTIONAL ARGUMENTS
-ap.add_argument('-debug',      type=bool,  default=False,      required=False, help='Debug mode')
-ap.add_argument('-vis_folder', type=str,   default='visFiles', required=False, help='Name of the plot folder')
-ap.add_argument('-xmin',       type=float, default=3.2,        required=False, help='Min. x value for analysis')
+ap.add_argument('-debug',      type=str2bool,   default=False,      required=False, help='Debug mode', nargs='?', const=True)
+ap.add_argument('-vis_folder', type=str,        default='visFiles', required=False, help='Name of the plot folder')
+ap.add_argument('-xmin',       type=float,      default=3.2,        required=False, help='Min. x value for analysis')
 ## ------------------- DEFINE REQUIRED ARGUMENTS
 ap.add_argument('-base_path',  type=str, required=True,  help='Filepath to the base folder')
 ap.add_argument('-pre_name',   type=str, required=True,  help='Name of figures')
@@ -126,8 +140,8 @@ folder_plot     = stringChop(folder_plot, '/')
 pre_name        = stringChop(pre_name, '/')
 ## ---------------------------- START CODE
 print('Began running the spectra plotting code in the filepath: \n\t' + filepath_base)
-print('Visualising folder: ' + folder_plot)
-print('Figure name: ' + pre_name)
+print('Visualising folder: '                                          + folder_plot)
+print('Figure name: '                                                 + pre_name)
 print(' ')
 
 ##################################################################

@@ -11,8 +11,6 @@
             -debug          False
             -sub_folder     spectFiles
             -vis_folder     visFiles
-            -ani_start      0
-            -ani_fps        40
             -file_start     0
             -file_end       np.Inf
 '''
@@ -139,10 +137,9 @@ ap = argparse.ArgumentParser(description='A bunch of input arguments')
 ap.add_argument('-debug',      type=str2bool,   default=False,        required=False, help='Debug mode', nargs='?', const=True)
 ap.add_argument('-sub_folder', type=str,        default='spectFiles', required=False, help='Name of the folder where the data is stored')
 ap.add_argument('-vis_folder', type=str,        default='visFiles',   required=False, help='Name of the plot folder')
-ap.add_argument('-ani_start',  type=str,        default='0',          required=False, help='First file number to animate')
-ap.add_argument('-ani_fps',    type=str,        default='40',         required=False, help='The animation frame rate')
 ap.add_argument('-file_start', type=int,        default=0,            required=False, help='First file to process')
 ap.add_argument('-file_end',   type=int,        default=np.Inf,       required=False, help='Last file to process')
+ap.add_argument('-file_step',  type=int,        default=50,           required=False, help='Step size between file_start and file_end')
 ## ------------------- DEFINE REQUIRED ARGUMENTS
 ap.add_argument('-base_path',  type=str,        required=True, help='Filepath to the base folder')
 ap.add_argument('-pre_name',   type=str,        required=True, help='Name of figures')
@@ -151,9 +148,8 @@ args = vars(ap.parse_args())
 ## ---------------------------- SAVE PARAMETERS
 bool_debug_mode = args['debug']       # enable/disable debug mode
 file_start      = args['file_start']  # starting processing frame
-file_end        = args['file_end']    # the last file to process
-ani_start       = args['ani_start']   # starting animation frame
-ani_fps         = args['ani_fps']     # animation's fps
+file_end        = args['file_end']    # last file to process
+file_step       = args['file_step']   # the number of plots to process
 ## ---------------------------- SAVE FILEPATH PARAMETERS
 filepath_base   = args['base_path']   # home directory
 folder_vis      = args['vis_folder']  # subfolder where animation and plots will be saved
@@ -183,7 +179,6 @@ t_eddy = 10 # number of spectra files per eddy turnover # TODO: input?
 global var_x, var_y
 var_x = 1  # variable: wave number (k)
 var_y = 15 # variable: power spectrum
-label_kin = r'$\mathcal{P}_{k_{B}=10, \mathregular{kin}}$'
 label_mag = r'$\mathcal{P}_{k_{B}=10, \mathregular{mag}}$'
 ## set the figure's axis limits
 xlim_min = 1.0
@@ -195,76 +190,49 @@ ylim_max = 4.2e-03
 ## INITIALISING VARIABLES
 ##################################################################
 filepath_data = createFilePath([filepath_base, folder_sub])
-filepath_plot = createFilePath([filepath_base, folder_vis, 'plotSpectra']) # folder where plots will be saved
+filepath_plot = createFilePath([filepath_base, folder_vis]) # folder where plots will be saved
 file_names, num_figs = setupInfo(filepath_data)
 createFolder(filepath_plot) # create folder where plots are saved
 
+fig = plt.figure(figsize=(10, 7), dpi=100)
 for var_iter in range(num_figs):
-    #################### INITIALISE LOOP
-    ####################################
-    fig = plt.figure(figsize=(10, 7), dpi=100)
-    var_time = var_iter/t_eddy # normalise time point by eddy-turnover time
-    print('Processing: %0.3f%% complete'%(100 * var_iter/num_figs))
-    #################### LOAD DATA
-    ##############################
-    print('Loading data...')
-    name_file_kin = 'Turb_hdf5_plt_cnt_' + '{0:04}'.format(var_iter) + '_spect_vels.dat' # kinetic file
-    name_file_mag = 'Turb_hdf5_plt_cnt_' + '{0:04}'.format(var_iter) + '_spect_mags.dat' # magnetic file
-    data_x_kin, data_y_kin = loadData(filepath_data + '/' + name_file_kin) # kinetic power spectrum
-    data_x_mag, data_y_mag = loadData(filepath_data + '/' + name_file_mag) # magnetic power spectrum
-    #################### PLOT DATA
-    ##############################
-    print('Plotting data...')
-    line_kin, = plt.plot(data_x_kin, data_y_kin, 'k', label=label_kin) # kinetic power spectrum
-    line_mag, = plt.plot(data_x_mag, data_y_mag, 'k--', label=label_mag) # magnetic power spectrum
-    #################### LABEL and ADJUST PLOT
-    ##########################################
-    print('Labelling plot...')
-    ## scale axies
-    plt.xscale('log')
-    plt.yscale('log')
-    ## set axis limits
-    plt.xlim(xlim_min, xlim_max)
-    plt.ylim(ylim_min, ylim_max)
-    ## annote time (eddy tunrover-time)
-    title = plt.annotate(r'$t/t_{\mathregular{eddy}} = $' + u'%0.2f'%(var_time),
-                    xy=(0.5, 0.95),
-                    fontsize=20, color='black', 
-                    ha='center', va='top', xycoords='axes fraction')
-    # label plots
-    plt.xlabel(r'$k$',           fontsize=20)
-    plt.ylabel(r'$\mathcal{P}$', fontsize=20)
-    ## major grid
-    plt.grid(which='major', linestyle='-', linewidth='0.5', color='black', alpha=0.35)
-    ## minor grid
-    plt.grid(which='minor', linestyle='--', linewidth='0.5', color='black', alpha=0.2)
-    #################### SAVE IMAGE
-    ###############################
-    print('Saving figure...')
-    temp_name = createFilePath([filepath_plot, (pre_name + '_spectra={0:06}'.format(int(var_time*10)) + '.png')])
-    plt.savefig(temp_name)
-    plt.close()
-    print('Figure saved: ' + temp_name)
-    print(' ')
-
-## create animation
-filepath_input  = createFilePath([filepath_plot, (pre_name + '_spectra=%06d.png')])
-filepath_output = createFilePath([filepath_plot, ('../' + pre_name + '_ani_spectra.mp4')])
-ffmpeg_input    = ('ffmpeg -start_number '          + ani_start + 
-                ' -i '                              + filepath_input + 
-                ' -vb 40M -framerate '              + ani_fps + 
-                ' -vf scale=1440:-1 -vcodec mpeg4 ' + filepath_output)
-if bool_debug_mode:
-    print('--------- Debug: Check FFMPEG input -----------------------------------')
-    print('Input: \n\t' + filepath_input)
-    print('Output: \n\t' + filepath_output)
-    print('FFMPEG input: \n\t' + ffmpeg_input)
-    print(' ')
-else:
-    print('Animating plots...')
-    os.system(ffmpeg_input) 
-    print('Animation finished: ' + filepath_output)
-    # eg. To check: execute the following within the visualising folder
-    # ffmpeg -start_number 0 -i ./plotSlices/dyna288_spectra=%06d.png -vb 40M -framerate 40 -vf scale=1440:-1 -vcodec mpeg4 ./dyna288_ani_spectra.mp4
+    if ((var_iter % file_step == 0) or (var_iter == file_start) or (var_iter == file_end)):
+        #################### INITIALISE LOOP
+        ####################################
+        var_time = var_iter/t_eddy # normalise time point by eddy-turnover time
+        print('Processing: %0.3f%% complete'%(100 * var_iter/num_figs))
+        #################### LOAD DATA
+        ##############################
+        print('Loading data...')
+        name_file_mag = 'Turb_hdf5_plt_cnt_' + '{0:04}'.format(var_iter) + '_spect_mags.dat' # magnetic file
+        data_x_mag, data_y_mag = loadData(filepath_data + '/' + name_file_mag) # magnetic power spectrum
+        #################### PLOT DATA
+        ##############################
+        print('Plotting data...')
+        line_mag, = plt.plot(data_x_mag, data_y_mag, 'k--', label=label_mag) # magnetic power spectrum
+#################### LABEL and ADJUST PLOT
+##########################################
+print('Labelling plot...')
+## scale axies
+plt.xscale('log')
+plt.yscale('log')
+## set axis limits
+plt.xlim(xlim_min, xlim_max)
+plt.ylim(ylim_min, ylim_max)
+# label plots
+plt.xlabel(r'$k$',           fontsize=20)
+plt.ylabel(r'$\mathcal{P}$', fontsize=20)
+## major grid
+plt.grid(which='major', linestyle='-', linewidth='0.5', color='black', alpha=0.35)
+## minor grid
+plt.grid(which='minor', linestyle='--', linewidth='0.5', color='black', alpha=0.2)
+#################### SAVE IMAGE
+###############################
+print('Saving figure...')
+temp_name = createFilePath([filepath_plot, (pre_name + '_spectra_mag.png')])
+plt.savefig(temp_name)
+plt.close()
+print('Figure saved: ' + temp_name)
+print(' ')
 
 ## END OF PROGRAM

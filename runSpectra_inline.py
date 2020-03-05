@@ -25,6 +25,20 @@ os.system('clear') # clear terminal window
 ##################################################################
 ## FUNCTIONS
 ##################################################################
+def str2bool(v):
+    '''
+    FROM:
+        https://stackoverflow.com/questions/15008758/parsing-boolean-values-with-argparse
+    '''
+    if isinstance(v, bool):
+        return v
+    if v.lower() in ('yes', 'true', 't', 'y', '1'):
+        return True
+    elif v.lower() in ('no', 'false', 'f', 'n', '0'):
+        return False
+    else:
+        raise argparse.ArgumentTypeError('Boolean value expected.')
+
 def meetsFirstCondition(element):
     global file_start, file_end
     ## accept files that look like: Turb_hdf5_plt_cnt_
@@ -59,12 +73,12 @@ def processHDF5(file_names):
 global file_start, file_end
 ap = argparse.ArgumentParser(description='A bunch of input arguments')
 ## ------------------- DEFINE OPTIONAL ARGUMENTS
-ap.add_argument('-check_only', type=bool, default=False,  required=False, help='Only check which files dont exist')
-ap.add_argument('-file_start', type=int,  default=0,      required=False, help='File number to start processing from')
-ap.add_argument('-file_end',   type=int,  default=np.Inf, required=False, help='File number to end processing from')
-ap.add_argument('-num_proc',   type=str,  default='8',    required=False, help='Number of processors')
+ap.add_argument('-check_only', type=str2bool,   default=False,  required=False, help='Only check which files dont exist', nargs='?', const=True)
+ap.add_argument('-file_start', type=int,        default=0,      required=False, help='File number to start processing from')
+ap.add_argument('-file_end',   type=int,        default=np.Inf, required=False, help='File number to end processing from')
+ap.add_argument('-num_proc',   type=str,        default='8',    required=False, help='Number of processors')
 ## ------------------- DEFINE REQUIRED ARGUMENTS
-ap.add_argument('-base_path',  type=str, required=True, help='Filepath to where files are located')
+ap.add_argument('-base_path',  type=str,        required=True, help='Filepath to where files are located')
 ## ---------------------------- OPEN ARGUMENTS
 args = vars(ap.parse_args())
 ## ---------------------------- SAVE PARAMETERS
@@ -81,9 +95,9 @@ if filepath.endswith('/'):
 filepath = filepath.replace('//', '/')
 ## ---------------------------- START CODE
 print("Began running the spectra code in folder: " + filepath)
-print("First file number: " + str(file_start))
-print("Last file number: " + str(file_end))
-print("Number processors: " + str(num_proc))
+print("First file number: "                        + str(file_start))
+print("Last file number: "                         + str(file_end))
+print("Number processors: "                        + str(num_proc))
 print(' ')
 
 ##################################################################

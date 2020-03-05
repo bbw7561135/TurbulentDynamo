@@ -50,6 +50,20 @@ mpl.style.use('classic')            # plot in classic style
 ##################################################################
 ## FUNCTION
 ##################################################################
+def str2bool(v):
+    '''
+    FROM:
+        https://stackoverflow.com/questions/15008758/parsing-boolean-values-with-argparse
+    '''
+    if isinstance(v, bool):
+        return v
+    if v.lower() in ('yes', 'true', 't', 'y', '1'):
+        return True
+    elif v.lower() in ('no', 'false', 'f', 'n', '0'):
+        return False
+    else:
+        raise argparse.ArgumentTypeError('Boolean value expected.')
+
 def stringChop(var_string, var_remove):
     ''' stringChop
     PURPOSE / OUTPUT:
@@ -65,8 +79,6 @@ def meetCondition(element):
     global bool_debug_mode, file_end
     element_start_right = bool(element.startswith('Turb_hdf5_plt_cnt_'))
     if (element_start_right and not(element.endswith('.dat'))):
-        print(element)
-        print(element.split('_')[-1])
         iter_number = int(element.split('_')[-1])
         if bool_debug_mode:
             return bool(element_start_right and (iter_number > 0) and (iter_number <= 5))
@@ -134,7 +146,7 @@ def loadData(filepath):
     global file_type
     f     = h5py.File(filepath, 'r')  # open hdf5 file stream: [iProc*jProc*kProc, nzb, nyb, nxb]
     names = [s for s in list(f.keys()) if s.startswith(file_type)] # save all keys containing the string file_type
-    data  = sum(np.array(f[i])**2 for i in names)                 # determine the variable's magnitude
+    data  = sum(np.array(f[i])**2 for i in names)                  # determine the variable's magnitude
     if file_type == 'mags': data /= plasma_beta                    # normalise the magnitude
     if bool_debug_mode: 
         print('--------- All the keys stored in the file:\n\t' + '\n\t'.join(list(f.keys()))) # print keys
@@ -155,7 +167,7 @@ def plotData_3D(data, temp_iter):
     print('\tPlotting contours...')
     lev_exp = np.arange(np.floor(np.log10(col_map_min)-1), # colour lower bound
                         np.ceil(np.log10(col_map_max)+1),  # colour upper bound
-                        1/2) # size of colour devisions per 10^n bracket
+                        1/4) # 1/number of colour devisions per 10^n bracket
     levs = np.power(10, lev_exp)
     ax.contourf(X, Y, data[0, :, :,], levs, zdir='z', cmap='plasma', offset=1, alpha=1, norm=mpl.colors.LogNorm()) # top face
     ax.contourf(data[:, :, 0], X, Y, levs, zdir='x', cmap='plasma', offset=0, alpha=1, norm=mpl.colors.LogNorm()) # right face
@@ -228,28 +240,43 @@ def plotData_2D(data, temp_iter):
 ## INPUT COMMAND LINE ARGUMENTS
 ##################################################################
 global file_end, bool_debug_mode, num_proc
-global pre_name, file_type
+global pre_name, file_type, plasma_beta
 ap = argparse.ArgumentParser(description='A bunch of input arguments')
 ## ------------------- DEFINE OPTIONAL ARGUMENTS
-ap.add_argument('-debug',      type=bool, default=False,        required=False, help='Debug mode')
-ap.add_argument('-ani_only',   type=bool, default=False,        required=False, help='Only animate currently existing plots')
-ap.add_argument('-sub_folder', type=str,  default='hdf5Files',  required=False, help='Name of the data folder')
-ap.add_argument('-vis_folder', type=str,  default='visFiles',   required=False, help='Name of the plot folder')
-ap.add_argument('-file_type',  type=str,  default='mag',        required=False, help='Variable to be plotted')
-ap.add_argument('-plot_dim',   type=str,  default='3D',         required=False, help='Number of dimensions to plot')
-ap.add_argument('-ani_start',  type=str,  default='0',          required=False, help='Start frame number')
-ap.add_argument('-ani_fps',    type=str,  default='40',         required=False, help='Animation frame rate')
-ap.add_argument('-file_start', type=int,  default=0,            required=False, help='File number to start plotting from')
-ap.add_argument('-file_end',   type=int,  default=np.Inf,       required=False, help='Number of files to process')
-ap.add_argument('-num_proc',   type=int,  default=8,            required=False, help='Number of processors')
+ap.add_argument('-debug',      type=str2bool,   default=False,        required=False, help='Debug mode',                            nargs='?', const=True)
+ap.add_argument('-ani_only',   type=str2bool,   default=False,        required=False, help='Only animate currently existing plots', nargs='?', const=True)
+ap.add_argument('-sub_folder', type=str,        default='hdf5Files',  required=False, help='Name of the data folder')
+ap.add_argument('-vis_folder', type=str,        default='visFiles',   required=False, help='Name of the plot folder')
+ap.add_argument('-file_type',  type=str,        default='mag',        required=False, help='Variable to be plotted')
+ap.add_argument('-plot_dim',   type=str,        default='3D',         required=False, help='Number of dimensions to plot')
+ap.add_argument('-ani_start',  type=str,        default='0',          required=False, help='Start frame number')
+ap.add_argument('-ani_fps',    type=str,        default='40',         required=False, help='Animation frame rate')
+ap.add_argument('-file_start', type=int,        default=0,            required=False, help='File number to start plotting from')
+ap.add_argument('-file_end',   type=int,        default=np.Inf,       required=False, help='Number of files to process')
+ap.add_argument('-num_proc',   type=int,        default=8,            required=False, help='Number of processors')
+ap.add_argument('-plasma_beta',type=int,        default=1e-10,        required=False, help='Plasma-Beta')
+ap.add_argument('-nxb',        type=int,        default=36,           required=False, help='Number of blocks in the x-direction')
+ap.add_argument('-nyb',        type=int,        default=36,           required=False, help='Number of blocks in the y-direction')
+ap.add_argument('-nzb',        type=int,        default=48,           required=False, help='Number of blocks in the z-direction')
+ap.add_argument('-iProc',      type=int,        default=8,            required=False, help='Number of processors in the x-direction')
+ap.add_argument('-jProc',      type=int,        default=8,            required=False, help='Number of processors in the y-direction')
+ap.add_argument('-kProc',      type=int,        default=6,            required=False, help='Number of processors in the z-direction')
 ## ------------------- DEFINE REQUIRED ARGUMENTS
-ap.add_argument('-base_path',  type=str,  required=True, help='File path to data')
-ap.add_argument('-pre_name',   type=str,  required=True, help='Name of figures')
+ap.add_argument('-base_path',  type=str,        required=True, help='File path to data')
+ap.add_argument('-pre_name',   type=str,        required=True, help='Name of figures')
 ## ------------------- OPEN ARGUMENTS
 args = vars(ap.parse_args())
-## ---------------------------- SAVE PARAMETERS
+## ---------------------------- SAVE BOOLEAN PARAMETERS
 bool_debug_mode = args['debug']
 bool_ani_only   = args['ani_only']
+## ---------------------------- SAVE SIMULATION PARAMETERS
+plasma_beta     = args['plasma_beta']
+nxb             = args['nxb']
+nyb             = args['nyb']
+nzb             = args['nzb']
+iProc           = args['iProc']
+jProc           = args['jProc']
+kProc           = args['kProc']
 ## ---------------------------- SAVE ANIMATION PARAMETERS
 file_type       = args['file_type']
 plot_dim        = args['plot_dim']
@@ -279,24 +306,22 @@ pre_name   = stringChop(pre_name,   '/')
 ## SETUP VARIABLES
 ##################################################################
 global num_blocks, num_procs, filepath_plot
-t_eddy      = 5
-plasma_beta = 1e-10
-num_blocks  = [48, 36, 36] # TODO: make default variable
-num_procs   = [6, 8, 8] # TODO: make default variable
+num_blocks  = [nzb,     nxb,    nyb]
+num_procs   = [kProc,   iProc,  jProc]
 
 filepath_data = createFilePath([filepath_base, folder_sub]) # where data is stored
 filepath_plot = createFilePath([filepath_base, folder_vis, 'plotHDF5_' + plot_dim]) # where plots will be saved
-print('The base directory is:\n\t' + filepath_base)
-print('The directory to the slice data is:\n\t' + filepath_data)
-print('The directory to where the figure will be saved is:\n\t' + filepath_plot)
-print('The chosen variable to plot:\n\t' + file_type)
+print('The base directory is:\n\t'                                     + filepath_base)
+print('The directory to the slice data is:\n\t'                        + filepath_data)
+print('The directory to where the figure will be saved is:\n\t'        + filepath_plot)
+print('The chosen variable to plot:\n\t'                               + file_type)
 print(' ')
 ## create folder where plots are saved
 createFolder(filepath_plot)
 ## save all file names that will to be processed
 file_names = list(filter(meetCondition, sorted(os.listdir(filepath_data))))
 num_figs = len(file_names)
-print('The files in filepath_data that satisfied meetCondition:')
+print('There are ' + str(num_figs) + ' files in filepath_data that satisfied meetCondition:')
 print('\t' + '\n\t'.join(file_names))
 print(' ')
 
@@ -307,9 +332,13 @@ global col_map_min, col_map_max
 col_map_min = np.nan
 col_map_max = np.nan
 if not(bool_ani_only):
-    temp_data = loadData(createFilePath([filepath_data, file_names[-1]]))
-    col_map_min = np.nanmin([col_map_min, np.nanmin(temp_data[0, :, :])])
-    col_map_max = np.nanmax([col_map_max, np.nanmax(temp_data[0, :, :])])
+    print('Checking colour-map bounds...')
+    temp_range = np.arange(0, num_figs, np.floor(num_figs/10)) # check 10% of files
+    for var_iter in temp_range:
+        temp_data   = loadData(createFilePath([filepath_data, file_names[int(var_iter)]]))
+        col_map_min = np.nanmin([col_map_min, np.nanmin(temp_data[0, :, :])])
+        col_map_max = np.nanmax([col_map_max, np.nanmax(temp_data[0, :, :])])
+        print('\tFile progress: ' + u'%0.1f%%'%(100 * var_iter/num_figs))
     print('Colour map domain: \n\tmin=' + str(col_map_min) + '\n\tmax='+str(col_map_max))
     print(' ')
 

@@ -42,6 +42,20 @@ data_queue = mp.Queue()
 ##################################################################
 ## FUNCTIONS
 ##################################################################
+def str2bool(v):
+    '''
+    FROM:
+        https://stackoverflow.com/questions/15008758/parsing-boolean-values-with-argparse
+    '''
+    if isinstance(v, bool):
+        return v
+    if v.lower() in ('yes', 'true', 't', 'y', '1'):
+        return True
+    elif v.lower() in ('no', 'false', 'f', 'n', '0'):
+        return False
+    else:
+        raise argparse.ArgumentTypeError('Boolean value expected.')
+
 def stringChop(var_string, var_remove):
     ''' stringChop
     PURPOSE / OUTPUT:
@@ -192,17 +206,17 @@ def worker(var_iter):
 global file_max, bool_debug_mode, num_proc
 ap = argparse.ArgumentParser(description='A bunch of input arguments')
 ## ------------------- DEFINE OPTIONAL ARGUMENTS
-ap.add_argument('-ani_only',   type=bool, default=False,        required=False, help='Animate only')
-ap.add_argument('-debug',      type=bool, default=False,        required=False, help='Debug mode')
-ap.add_argument('-vis_folder', type=str,  default='visFiles',   required=False, help='Name of the plot folder')
-ap.add_argument('-sub_folder', type=str,  default='sliceFiles', required=False, help='Name of the folder where the data is stored')
-ap.add_argument('-ani_start',  type=str,  default='0',          required=False, help='Start frame number')
-ap.add_argument('-ani_fps',    type=str,  default='40',         required=False, help='Animation frame rate')
-ap.add_argument('-file_end',   type=int,  default=np.Inf,       required=False, help='Number of files to process')
-ap.add_argument('-num_proc',   type=int,  default=8,            required=False, help='Number of processors')
+ap.add_argument('-debug',      type=str2bool,   default=False,        required=False, help='Debug mode',   nargs='?', const=True)
+ap.add_argument('-ani_only',   type=str2bool,   default=False,        required=False, help='Animate only', nargs='?', const=True)
+ap.add_argument('-vis_folder', type=str,        default='visFiles',   required=False, help='Name of the plot folder')
+ap.add_argument('-sub_folder', type=str,        default='sliceFiles', required=False, help='Name of the folder where the data is stored')
+ap.add_argument('-ani_start',  type=str,        default='0',          required=False, help='Start frame number')
+ap.add_argument('-ani_fps',    type=str,        default='40',         required=False, help='Animation frame rate')
+ap.add_argument('-file_end',   type=int,        default=np.Inf,       required=False, help='Number of files to process')
+ap.add_argument('-num_proc',   type=int,        default=8,            required=False, help='Number of processors')
 ## ------------------- DEFINE REQUIRED ARGUMENTS
-ap.add_argument('-base_path',  type=str, required=True, help='File path to data')
-ap.add_argument('-pre_name',   type=str, required=True, help='Name of figures')
+ap.add_argument('-base_path',  type=str,        required=True, help='File path to data')
+ap.add_argument('-pre_name',   type=str,        required=True, help='Name of figures')
 ## ------------------- OPEN ARGUMENTS
 args = vars(ap.parse_args())
 ## ---------------------------- SAVE PARAMETERS
@@ -231,8 +245,8 @@ folder_sub    = stringChop(folder_sub, '/')
 pre_name      = stringChop(pre_name, '/')
 ## ---------------------------- START CODE
 print("Began running the slice code in folder: \n\t" + filepath_base)
-print('Visualising folder: ' + folder_vis)
-print('Figure name: ' + pre_name)
+print('Visualising folder: '                         + folder_vis)
+print('Figure name: '                                + pre_name)
 print(' ')
 
 ##################################################################
