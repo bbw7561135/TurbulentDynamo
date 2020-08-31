@@ -3,26 +3,18 @@
 ''' AUTHOR: Neco Kriel
     
     EXAMPLE: 
-    spectra_dPlot_inline.py 
+    ani_spectra.py 
         (required)
-            -base_path /Users/dukekriel/Documents/University/Year4Sem2/Summer-19/ANU-Turbulence-Dynamo 
-            -dat_folder1    dyna288_Bk10 
-            -dat_folder2    dyna288_Bk100
-            -pre_name       dyna288
+            -base_path      /Users/dukekriel/Documents/University/Year4Sem2/Summer-19/ANU-Turbulence-Dynamo/dyna288_Bk10 
+            -pre_name       dyna288_Bk10
         (optional)
             -debug          False
-            -plot_kin       True
-            -plot_mag       True
-            -vis_folder     visFiles
             -sub_folder     spectFiles
+            -vis_folder     visFiles
             -ani_start      0
             -ani_fps        40
             -file_start     0
             -file_end       np.Inf
-            -xlim_min       1.0
-            -xlim_max       1.3e+02
-            -ylim_min       1.0e-25
-            -ylim_max       4.2e-03
 '''
 
 ##################################################################
@@ -92,9 +84,6 @@ def setupInfo(filepath):
     global bool_debug_mode
     ## save the the filenames to process
     file_names = list(filter(meetsCondition, sorted(os.listdir(filepath))))
-    print('Filepath: ' + filepath)
-    print('Number of sepctra files: ' + str(len(file_names)/2))
-    print(' ')
     ## check files
     if bool_debug_mode:
         print('The files in the filepath:')
@@ -144,66 +133,44 @@ def loadData(directory):
 ##################################################################
 ## INPUT COMMAND LINE ARGUMENTS
 ##################################################################
-global bool_debug_mode
-global filepath_base, file_start, file_end
+global file_end, bool_debug_mode, filepath_base, file_start
 ap = argparse.ArgumentParser(description='A bunch of input arguments')
 ## ------------------- DEFINE OPTIONAL ARGUMENTS
-ap.add_argument('-debug',       type=str2bool,  default=False,          required=False, help='Debug mode',                 nargs='?', const=True)
-ap.add_argument('-plot_kin',    type=str2bool,  default=True,           required=False, help='Plot the kinetic spectra?',  nargs='?', const=False)
-ap.add_argument('-plot_mag',    type=str2bool,  default=True,           required=False, help='Plot the magnetic spectra?', nargs='?', const=False)
-ap.add_argument('-vis_folder',  type=str,       default='visFiles',     required=False, help='Name of the plot folder')
-ap.add_argument('-sub_folder',  type=str,       default='spectFiles',   required=False, help='Name of the folder where the data is stored')
-ap.add_argument('-ani_start',   type=str,       default='0',            required=False, help='Animation start number')
-ap.add_argument('-ani_fps',     type=str,       default='40',           required=False, help='Animation frame rate')
-ap.add_argument('-file_start',  type=int,       default=0,              required=False, help='File number to start plotting from')
-ap.add_argument('-file_end',    type=int,       default=np.Inf,         required=False, help='Number of files to process')
-ap.add_argument('-xlim_min',    type=float,     default=1.0,            required=False, help='Figure xlim minimum')
-ap.add_argument('-xlim_max',    type=float,     default=1.3e+02,        required=False, help='Figure xlim maximum')
-ap.add_argument('-ylim_min',    type=float,     default=1.0e-25,        required=False, help='Figure ylim minimum')
-ap.add_argument('-ylim_max',    type=float,     default=4.2e-03,        required=False, help='Figure ylim maximum')
+ap.add_argument('-debug',      type=str2bool,   default=False,        required=False, help='Debug mode', nargs='?', const=True)
+ap.add_argument('-sub_folder', type=str,        default='spectFiles', required=False, help='Name of the folder where the data is stored')
+ap.add_argument('-vis_folder', type=str,        default='visFiles',   required=False, help='Name of the plot folder')
+ap.add_argument('-ani_start',  type=str,        default='0',          required=False, help='First file number to animate')
+ap.add_argument('-ani_fps',    type=str,        default='40',         required=False, help='The animation frame rate')
+ap.add_argument('-file_start', type=int,        default=0,            required=False, help='First file to process')
+ap.add_argument('-file_end',   type=int,        default=np.Inf,       required=False, help='Last file to process')
 ## ------------------- DEFINE REQUIRED ARGUMENTS
-ap.add_argument('-base_path',   type=str, required=True, help='Filepath to the base folder')
-ap.add_argument('-dat_folder1', type=str, required=True, help='Name of the first folder')
-ap.add_argument('-dat_folder2', type=str, required=True, help='Name of the second folder')
-ap.add_argument('-pre_name',    type=str, required=True, help='Name of figures')
+ap.add_argument('-base_path',  type=str,        required=True, help='Filepath to the base folder')
+ap.add_argument('-pre_name',   type=str,        required=True, help='Name of figures')
 ## ---------------------------- OPEN ARGUMENTS
 args = vars(ap.parse_args())
 ## ---------------------------- SAVE PARAMETERS
 bool_debug_mode = args['debug']       # enable/disable debug mode
-bool_plot_kin   = args['plot_kin']    # plot the kinetic spectra?
-bool_plot_mag   = args['plot_mag']    # plot the magnetic spectra?
 file_start      = args['file_start']  # starting processing frame
 file_end        = args['file_end']    # the last file to process
 ani_start       = args['ani_start']   # starting animation frame
 ani_fps         = args['ani_fps']     # animation's fps
-## set the figure's axis limits
-xlim_min        = args['xlim_min']
-xlim_max        = args['xlim_max']
-ylim_min        = args['ylim_min']
-ylim_max        = args['ylim_max']
 ## ---------------------------- SAVE FILEPATH PARAMETERS
 filepath_base   = args['base_path']   # home directory
-folder_data_1   = args['dat_folder1'] # first subfolder's name
-folder_data_2   = args['dat_folder2'] # second subfolder's name
-folder_sub      = args['sub_folder']  # sub-subfolder where data is stored's name
 folder_vis      = args['vis_folder']  # subfolder where animation and plots will be saved
+folder_sub      = args['sub_folder']  # sub-subfolder where data is stored's name
 pre_name        = args['pre_name']    # name of figures
 ## ---------------------------- ADJUST ARGUMENTS
-## remove the trailing '/' from the input filepath and folders
+## remove the trailing '/' from the input filepath and plot folder
 if filepath_base.endswith('/'):
     filepath_base = filepath_base[:-1]
 ## replace any '//' with '/'
-filepath_base   = filepath_base.replace('//', '/')
+filepath_base = filepath_base.replace('//', '/')
 ## remove '/' from variable names
-folder_data_1   = stringChop(folder_data_1, '/')
-folder_data_2   = stringChop(folder_data_2, '/')
-folder_sub      = stringChop(folder_sub, '/')
-folder_vis      = stringChop(folder_vis, '/')
-pre_name        = stringChop(pre_name, '/')
+folder_vis    = stringChop(folder_vis, '/')
+folder_sub    = stringChop(folder_sub, '/')
+pre_name      = stringChop(pre_name, '/')
 ## ---------------------------- START CODE
 print('Began running the spectra plotting code in base filepath: \n\t' + filepath_base)
-print('Data folder 1: '                                                + folder_data_1)
-print('Data folder 2: '                                                + folder_data_2)
 print('Visualising folder: '                                           + folder_vis)
 print('Figure name: '                                                  + pre_name)
 print(' ')
@@ -212,27 +179,24 @@ print(' ')
 ## USER VARIABLES
 ##################################################################
 t_eddy = 10 # number of spectra files per eddy turnover # TODO: input?
-## specify where files are located and needs to be saved
-## first plot's information
-label_1_kin = r'$\mathcal{P}_{k_{B}=10, \mathregular{kin}}$'
-label_1_mag = r'$\mathcal{P}_{k_{B}=10, \mathregular{mag}}$'
-## second plot's information
-label_2_kin = r'$\mathcal{P}_{k_{B}=100, \mathregular{kin}}$'
-label_2_mag = r'$\mathcal{P}_{k_{B}=100, \mathregular{mag}}$'
 ## specify which variables you want to plot
 global var_x, var_y
 var_x = 1  # variable: wave number (k)
 var_y = 15 # variable: power spectrum
+label_kin = r'$\mathcal{P}_{k_{B}=10, \mathregular{kin}}$'
+label_mag = r'$\mathcal{P}_{k_{B}=10, \mathregular{mag}}$'
+## set the figure's axis limits
+xlim_min = 1.0
+xlim_max = 1.3e+02
+ylim_min = 1.0e-25
+ylim_max = 4.2e-03
 
 ##################################################################
 ## INITIALISING VARIABLES
 ##################################################################
-filepath_data_1 = createFilePath([filepath_base, folder_data_1, folder_sub]) # first folder with data
-filepath_data_2 = createFilePath([filepath_base, folder_data_2, folder_sub]) # second folder with data
-filepath_plot   = createFilePath([filepath_base, folder_vis, 'plotSpectra']) # folder where plots will be saved
-file_names_1, num_figs_1 = setupInfo(filepath_data_1)
-file_names_2, num_figs_2 = setupInfo(filepath_data_2)
-num_figs = min(num_figs_1, num_figs_2)
+filepath_data = createFilePath([filepath_base, folder_sub])
+filepath_plot = createFilePath([filepath_base, folder_vis, 'plotSpectra']) # folder where plots will be saved
+file_names, num_figs = setupInfo(filepath_data)
 createFolder(filepath_plot) # create folder where plots are saved
 
 for var_iter in range(num_figs):
@@ -246,21 +210,13 @@ for var_iter in range(num_figs):
     print('Loading data...')
     name_file_kin = 'Turb_hdf5_plt_cnt_' + '{0:04}'.format(var_iter) + '_spect_vels.dat' # kinetic file
     name_file_mag = 'Turb_hdf5_plt_cnt_' + '{0:04}'.format(var_iter) + '_spect_mags.dat' # magnetic file
-    ## load dataset 1
-    if bool_plot_kin: data_x_1_kin, data_y_1_kin = loadData(createFilePath([filepath_data_1, name_file_kin])) # kinetic power spectrum
-    if bool_plot_mag: data_x_1_mag, data_y_1_mag = loadData(createFilePath([filepath_data_1, name_file_mag])) # magnetic power spectrum
-    ## load dataset 2
-    if bool_plot_kin: data_x_2_kin, data_y_2_kin = loadData(createFilePath([filepath_data_2, name_file_kin])) # kinetic power spectrum
-    if bool_plot_mag: data_x_2_mag, data_y_2_mag = loadData(createFilePath([filepath_data_2, name_file_mag])) # magnetic power spectrum
+    data_x_kin, data_y_kin = loadData(filepath_data + '/' + name_file_kin) # kinetic power spectrum
+    data_x_mag, data_y_mag = loadData(filepath_data + '/' + name_file_mag) # magnetic power spectrum
     #################### PLOT DATA
     ##############################
     print('Plotting data...')
-    ## plot dataset 1
-    if bool_plot_kin: line_1_kin, = plt.plot(data_x_1_kin, data_y_1_kin, 'k', label=label_1_kin) # kinetic power spectrum
-    if bool_plot_mag: line_1_mag, = plt.plot(data_x_1_mag, data_y_1_mag, 'k--', label=label_1_mag) # magnetic power spectrum
-    ## plot dataset 2
-    if bool_plot_kin: line_1_kin, = plt.plot(data_x_2_kin, data_y_2_kin, 'b', label=label_2_kin) # kinetic power spectrum
-    if bool_plot_mag: line_1_mag, = plt.plot(data_x_2_mag, data_y_2_mag, 'b--', label=label_2_mag) # magnetic power spectrum
+    line_kin, = plt.plot(data_x_kin, data_y_kin, 'k', label=label_kin) # kinetic power spectrum
+    line_mag, = plt.plot(data_x_mag, data_y_mag, 'k--', label=label_mag) # magnetic power spectrum
     #################### LABEL and ADJUST PLOT
     ##########################################
     print('Labelling plot...')
@@ -278,8 +234,6 @@ for var_iter in range(num_figs):
     # label plots
     plt.xlabel(r'$k$',           fontsize=20)
     plt.ylabel(r'$\mathcal{P}$', fontsize=20)
-    # add legend
-    plt.legend(loc='upper right', fontsize=17, frameon=False)
     ## major grid
     plt.grid(which='major', linestyle='-', linewidth='0.5', color='black', alpha=0.35)
     ## minor grid
@@ -295,7 +249,7 @@ for var_iter in range(num_figs):
 
 ## create animation
 filepath_input  = createFilePath([filepath_plot, (pre_name + '_spectra=%06d.png')])
-filepath_output = createFilePath([filepath_plot, ('../' + pre_name + '_ani_spectras_combined.mp4')])
+filepath_output = createFilePath([filepath_plot, ('../' + pre_name + '_ani_spectra.mp4')])
 ffmpeg_input    = ('ffmpeg -start_number '          + ani_start + 
                 ' -i '                              + filepath_input + 
                 ' -vb 40M -framerate '              + ani_fps + 

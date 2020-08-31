@@ -3,7 +3,7 @@
 ''' AUTHOR: Neco Kriel
     
     EXAMPLE: 
-    hdf5_plot_inline.py
+    plot_cube.py
         (required)
             -base_path      /Users/dukekriel/Documents/University/Year4Sem2/Summer-19/ANU-Turbulence-Dynamo/dyna288_Bk10 
             -pre_name       dyna288_Bk10
@@ -39,6 +39,7 @@ import matplotlib.pyplot as plt
 from mpl_toolkits import mplot3d
 from matplotlib import ticker, cm
 from matplotlib.colors import LogNorm
+from licpy.lic import runlic
 
 ##################################################################
 ## PREPARE TERMINAL/CODE
@@ -140,14 +141,14 @@ def reformatField(field, nx=None, procs=None):
                 field_sorted[i*nxb:(i+1)*nxb, j*nyb:(j+1)*nyb, k*nzb:(k+1)*nzb] = field[k + j*jprocs + i*jprocs*kprocs]
     return field_sorted
 
-def loadData(filepath):
+def loadData_mag(filepath):
     global bool_debug_mode
     global num_blocks, num_procs
     global file_type
     f     = h5py.File(filepath, 'r')  # open hdf5 file stream: [iProc*jProc*kProc, nzb, nyb, nxb]
     names = [s for s in list(f.keys()) if s.startswith(file_type)] # save all keys containing the string file_type
     data  = sum(np.array(f[i])**2 for i in names)                  # determine the variable's magnitude
-    if file_type == 'mags': data /= plasma_beta                    # normalise the magnitude
+    if file_type == 'mag': data /= plasma_beta                     # normalise the magnitude
     if bool_debug_mode: 
         print('--------- All the keys stored in the file:\n\t' + '\n\t'.join(list(f.keys()))) # print keys
         print('--------- All keys that are used: ' + str(names))
@@ -156,36 +157,64 @@ def loadData(filepath):
     data_sorted = reformatField(data, num_blocks, num_procs)
     return data_sorted
 
+def loadData_LIC(filepath):
+    global bool_debug_mode
+    global num_blocks, num_procs
+    global file_type
+    f      = h5py.File(filepath, 'r')  # open hdf5 file stream: [iProc*jProc*kProc, nzb, nyb, nxb]
+    names  = [s for s in list(f.keys()) if s.startswith(file_type)] # save all keys containing the string file_type
+    data_x = np.array(f['magx']) # save x data
+    data_y = np.array(f['magy']) # save y data
+    if bool_debug_mode: 
+        print('--------- All the keys stored in the file:\n\t' + '\n\t'.join(list(f.keys()))) # print keys
+        print('--------- All keys that are used: ' + str(names))
+    f.close() # close the file stream
+    ## reformat data
+    data_sorted_x = reformatField(data_x, num_blocks, num_procs)
+    data_sorted_y = reformatField(data_y, num_blocks, num_procs)
+    print(data_sorted_x.ndim)
+    return data_sorted_x, data_sorted_y
+
 def plotData_3D(data, temp_iter):
     global col_map_min, col_map_max
     x = np.linspace(0, 1, data.shape[0])
     X, Y = np.meshgrid(x, x)
     ## initialise the figure
-    fig = plt.figure(figsize=(10, 7), dpi=100)
+    fig = plt.figure(figsize=(10, 8))
     ax = fig.gca(projection='3d')
     ## plot data as contours
     print('\tPlotting contours...')
-    lev_exp = np.arange(np.floor(np.log10(col_map_min)-1), # colour lower bound
-                        np.ceil(np.log10(col_map_max)+1),  # colour upper bound
-                        1/4) # 1/number of colour devisions per 10^n bracket
+    if file_type == 'mag':
+        lev_exp = np.arange(np.floor(np.log10(col_map_min)-1), # colour lower bound
+                            np.ceil(np.log10(col_map_max)+1),  # colour upper bound
+                            1/4) # 1/number of colour devisions per 10^n bracket
+    else:
+        lev_exp = np.arange(np.floor(np.log10(col_map_min)-1), # colour lower bound
+                            np.ceil(np.log10(col_map_max)+1),  # colour upper bound
+                            1/8) # 1/number of colour devisions per 10^n bracket
     levs = np.power(10, lev_exp)
     ax.contourf(X, Y, data[0, :, :,], levs, zdir='z', cmap='plasma', offset=1, alpha=1, norm=mpl.colors.LogNorm()) # top face
     ax.contourf(data[:, :, 0], X, Y, levs, zdir='x', cmap='plasma', offset=0, alpha=1, norm=mpl.colors.LogNorm()) # right face
     cbar_plot = ax.contourf(X, data[:, 0, :],  Y, levs, zdir='y', cmap='plasma', offset=1, alpha=1, norm=mpl.colors.LogNorm()) # left face
     print('\tAnotating plot...')
-    plt.tight_layout()
     ## set figure range
+    plt.axis('off')
+    ax.grid(False)
     ax.set_xlim((-0, 1)); ax.set_ylim((-0, 1)); ax.set_zlim((-0, 1))
-    ax.set_xticks([0, 0.5, 1]); ax.set_yticks([0, 0.5, 1]); ax.set_zticks([0, 0.5, 1])
+    ax.set_xticks([]); ax.set_yticks([]); ax.set_zticks([])
     ## set 3D viewing angle
-    ax.view_init(elev=30, azim=140)
+    ax.view_init(elev=25, azim=135)
     ## add time anotation
-    ax.text2D(0.5, 1.0,
+    ax.text2D(0.25, 0.95,
         r'$t/t_{\mathregular{eddy}} = $' + u'%0.1f'%(int(temp_iter)/10),
         fontsize=20, color='black',
         ha='center', va='top', transform=ax.transAxes)
     ## add a colour-bar
-    cbar = plt.colorbar(cbar_plot, shrink=0.8, pad=0.01, label=r'$B/B_{0}$')
+    if file_type == 'mag':
+        temp_label = r'$E_{B}/E_{B, 0}$'
+    else:
+        temp_label=r'$E_{u}/E_{u, 0}$'
+    cbar = plt.colorbar(cbar_plot, shrink=0.8, pad=0.01, label=temp_label, cax=fig.add_axes([0.85, .2, 0.025, 0.6]))
     ax = cbar.ax
     cbar.ax.tick_params(labelsize=13)
     text = ax.yaxis.label
@@ -193,7 +222,7 @@ def plotData_3D(data, temp_iter):
     text.set_font_properties(font)
     ## save plot
     print('\tSaving 3D figure...')
-    plt.savefig(createFilePath([filepath_plot, (pre_name +'_'+ file_type +'_'+ temp_iter + '_3D.png')]))
+    plt.savefig(createFilePath([filepath_plot, (pre_name +'_'+ file_type +'_'+ temp_iter + '_3D.png')]), bbox_inches='tight', dpi=300)
     print('\tSaved 3D figure: %i.'%int(temp_iter) + '  \t%0.3f%% complete\n'%(100 * int(temp_iter)/len(file_names)))
     plt.close()
 
@@ -217,7 +246,10 @@ def plotData_2D(data, temp_iter):
         fontsize=20, color='black',
         ha='center', va='top', transform=ax.transAxes)
     ## add a colour-bar
-    cbar = plt.colorbar(label=r'$B/B_{0}$')
+    if file_type == 'mag':
+        cbar = plt.colorbar(label=r'$E_{B}/E_{B, t=0}$')
+    else:
+        cbar = plt.colorbar(label=r'$E_{\nu}/E_{\nu, t=0}$')
     ax   = cbar.ax
     cbar.ax.tick_params(labelsize=13)
     plt.clim(col_map_min, col_map_max) # set the colour bar limits
@@ -232,8 +264,38 @@ def plotData_2D(data, temp_iter):
     plt.minorticks_on()
     ## save plot
     print('\tSaving 2D figure...')
-    plt.savefig(createFilePath([filepath_plot, (pre_name +'_'+ file_type +'_'+ temp_iter + '_2D.png')]))
+    plt.savefig(createFilePath([filepath_plot, (pre_name +'_'+ file_type +'_'+ temp_iter + '_2D.png')]), dpi=300)
     print('\tSaved 2D figure: %i.'%int(temp_iter) + '  \t%0.3f%% complete\n'%(100 * int(temp_iter)/len(file_names)))
+    plt.close()
+
+def plotData_LIC(data_x, data_y, temp_iter):
+    global filepath_plot, pre_name, file_type
+    ## initialise the figure
+    fig = plt.figure(figsize=(10, 7), dpi=100)
+    ax  = fig.add_axes([0.1, 0.1, 0.8, 0.8])
+    ## plot data
+    temp_tex = runlic(data_x, data_y, 3)
+    plt.figimage(temp_tex)
+    ## add a colour-bar
+    print('\tAnotating plot...')
+    ## annotate the plot
+    ax.text(0.5, 0.95,
+        r'$t/t_{\mathregular{eddy}} = $' + u'%0.1f'%(int(temp_iter)/10),
+        fontsize=20, color='black',
+        ha='center', va='top', transform=ax.transAxes)
+    ## label and tune the plot
+    text = ax.yaxis.label
+    font = mpl.font_manager.FontProperties(family='times new roman', style='italic', size=18)
+    text.set_font_properties(font)
+    plt.xlim([0.0,1.0]); plt.ylim([0.0,1.0]) # set the x,y-limits
+    plt.xticks([0.0,0.5,1.0]); plt.yticks([0.0,0.5,1.0]) # specify marker points
+    plt.xticks([0.0,0.5,1.0], [r'$0$', r'$L/2$', r'$L$'], fontsize=20) # label the marker points
+    plt.yticks([0.0,0.5,1.0], [r'$0$', r'$L/2$', r'$L$'], fontsize=20)
+    plt.minorticks_on()
+    ## save plot
+    print('\tSaving LIC figure...')
+    plt.savefig(createFilePath([filepath_plot, (pre_name +'_'+ file_type +'_'+ temp_iter + '_LIC.png')]), dpi=300)
+    print('\tSaved LIC figure: %i.'%int(temp_iter) + '  \t%0.3f%% complete\n'%(100 * int(temp_iter)/len(file_names)))
     plt.close()
 
 ##################################################################
@@ -248,7 +310,7 @@ ap.add_argument('-ani_only',   type=str2bool,   default=False,        required=F
 ap.add_argument('-sub_folder', type=str,        default='hdf5Files',  required=False, help='Name of the data folder')
 ap.add_argument('-vis_folder', type=str,        default='visFiles',   required=False, help='Name of the plot folder')
 ap.add_argument('-file_type',  type=str,        default='mag',        required=False, help='Variable to be plotted')
-ap.add_argument('-plot_dim',   type=str,        default='3D',         required=False, help='Number of dimensions to plot')
+ap.add_argument('-plot_dim',   type=str,        default='LIC',        required=False, help='Number of dimensions to plot')
 ap.add_argument('-ani_start',  type=str,        default='0',          required=False, help='Start frame number')
 ap.add_argument('-ani_fps',    type=str,        default='40',         required=False, help='Animation frame rate')
 ap.add_argument('-file_start', type=int,        default=0,            required=False, help='File number to start plotting from')
@@ -312,7 +374,7 @@ num_procs   = [kProc,   iProc,  jProc]
 filepath_data = createFilePath([filepath_base, folder_sub]) # where data is stored
 filepath_plot = createFilePath([filepath_base, folder_vis, 'plotHDF5_' + plot_dim]) # where plots will be saved
 print('The base directory is:\n\t'                                     + filepath_base)
-print('The directory to the slice data is:\n\t'                        + filepath_data)
+print('The directory to the hdf5 data is:\n\t'                        + filepath_data)
 print('The directory to where the figure will be saved is:\n\t'        + filepath_plot)
 print('The chosen variable to plot:\n\t'                               + file_type)
 print(' ')
@@ -331,11 +393,11 @@ print(' ')
 global col_map_min, col_map_max
 col_map_min = np.nan
 col_map_max = np.nan
-if not(bool_ani_only):
+if not((bool_ani_only) or (plot_dim.lower() in 'LIC'.lower())):
     print('Checking colour-map bounds...')
-    temp_range = np.arange(0, num_figs, np.floor(num_figs/10)) # check 10% of files
+    temp_range = np.arange(0, num_figs, np.floor(num_figs/50)) # check 50% of files
     for var_iter in temp_range:
-        temp_data   = loadData(createFilePath([filepath_data, file_names[int(var_iter)]]))
+        temp_data   = loadData_mag(createFilePath([filepath_data, file_names[int(var_iter)]]))
         col_map_min = np.nanmin([col_map_min, np.nanmin(temp_data[0, :, :])])
         col_map_max = np.nanmax([col_map_max, np.nanmax(temp_data[0, :, :])])
         print('\tFile progress: ' + u'%0.1f%%'%(100 * var_iter/num_figs))
@@ -350,16 +412,20 @@ if not(bool_ani_only):
     print(' ')
     figs_complete = 0
     for file_name in file_names:
-        ## process data
-        print('Loading data...')
-        temp_data = loadData(createFilePath([filepath_data, file_name]))
-        ## plot and save data
-        if plot_dim == '3D':
-            print('Plotting 3D data...')
-            plotData_3D(temp_data, file_name.split('_')[-1])
+        ## load and plot data
+        if plot_dim.lower() == 'LIC'.lower():
+            print('Plotting LIC data...')
+            temp_data_x, temp_data_y = loadData_LIC(createFilePath([filepath_data, file_name]))
+            plotData_LIC(temp_data_x[0, :, :], temp_data_y[0, :, :], file_name.split('_')[-1])
         else:
-            print('Plotting 2D data...')
-            plotData_2D(temp_data[0, :, :], file_name.split('_')[-1])
+            temp_data = loadData_mag(createFilePath([filepath_data, file_name]))
+            ## plot and save data
+            if plot_dim == '3D':
+                print('Plotting 3D data...')
+                plotData_3D(temp_data, file_name.split('_')[-1])
+            else:
+                print('Plotting 2D data...')
+                plotData_2D(temp_data[0, :, :], file_name.split('_')[-1])
     print('Finished plotting...')
 
 ##################################################################
@@ -383,5 +449,5 @@ else:
     print('Animating plots...')
     os.system(ffmpeg_input) 
     print('Animation finished: ' + filepath_output)
-    # eg. ffmpeg -start_number 0 -i ./plotSlices/name_plot_slice_mag_%6d.png -vb 40M -framerate 25 -vf scale=1440:-1 -vcodec mpeg4 ./name_ani_mag.mp4
+    # eg. ffmpeg -start_number 0 -i ./plotHDF5_3D/dyna288_Bk10_Re10_vel_%4d_3D.png -vb 40M -framerate 25 -vf scale=1440:-1 -vcodec mpeg4 ./dyna288_Bk10_Re10_vel_3D.mp4
 

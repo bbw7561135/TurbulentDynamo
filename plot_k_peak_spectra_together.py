@@ -3,16 +3,16 @@
 ''' AUTHOR: Neco Kriel
     
     EXAMPLE: 
-    spectra_plot_inline.py 
+    plot_k_peak_spectra_together.py 
         (required)
-            -base_path      /Users/dukekriel/Documents/University/Year4Sem2/Summer-19/ANU-Turbulence-Dynamo/dyna288_Bk10 
-            -pre_name       dyna288_Bk10
+            -base_path      $scratch
+            -dat_folder1    dyna288_Bk10/Re10
+            -dat_folder2    dyna288_Bk100/Re10
+            -pre_name       dyna288_Re10
         (optional)
             -debug          False
             -sub_folder     spectFiles
             -vis_folder     visFiles
-            -ani_start      0
-            -ani_fps        40
             -file_start     0
             -file_end       np.Inf
 '''
@@ -25,6 +25,10 @@ import argparse
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib as mpl
+
+from matplotlib import ticker, cm
+from matplotlib.colors import LogNorm
+from statistics import stdev, mean
 
 ##################################################################
 ## PREPARE TERMINAL/WORKSPACE/CODE
@@ -79,7 +83,7 @@ def createFolder(folder_name):
 def setupInfo(filepath):
     ''' setupInfo
     PURPOSE:
-        Collect filenames that will be processedm and the number of these files
+        Collect filenames that will be processed and the number of these files
     '''
     global bool_debug_mode
     ## save the the filenames to process
@@ -119,16 +123,62 @@ def meetsCondition(element):
     return False
 
 def loadData(directory):
-    global bool_debug_mode, var_x, var_y
-    filedata     = open(directory).readlines() # load in data
-    header       = filedata[5].split() # save the header
-    data         = np.array([x.strip().split() for x in filedata[6:]]) # store all data. index: data[row, col]
-    if bool_debug_mode:
-        print('\nHeader names: for ' + directory.split('/')[-1])
-        print('\n'.join(header)) # print all header names (with index)
-    data_x = list(map(float, data[:, var_x]))
-    data_y = list(map(float, data[:, var_y]))
+    filedata = open(directory).readlines() # load in data
+    data     = np.array([x.strip().split() for x in filedata[6:]]) # store all data. index: data[row, col]
+    data_x   = list(map(float, data[:, 1]))  # variable: wave number (k)
+    data_y   = list(map(float, data[:, 15])) # variable: power spectrum
     return data_x, data_y
+
+def saveData(filepath_data):
+    global t_eddy
+    num_time_points = int(len(list(filter(meetsCondition, sorted(os.listdir(filepath_data)))))/2)
+    for cur_iter in range(num_time_points):
+        #################### START OF LOOP
+        ####################################
+        cur_time = cur_iter/t_eddy # normalise time point by eddy-turnover time
+        if ((100 * cur_iter/num_time_points) % 5 < 0.1):
+            print('\t Loading data... %0.3f%% complete'%(100 * cur_iter/num_time_points))
+        #################### LOAD DATA
+        ##############################
+        name_file_mag = 'Turb_hdf5_plt_cnt_' + '{0:04}'.format(cur_iter) + '_spect_mags.dat' # magnetic file
+        data_x, data_y = loadData(filepath_data + '/' + name_file_mag) # magnetic power spectrum
+        if (cur_iter == 0):
+            #################### INITIALISE DATA
+            ##############################
+            ## initialise the list of time points
+            time_points = []
+            ## initialise the list of peaks values and their standard deviation
+            peak_k = []
+            peak_k_std = []
+        #################### SAVE DATA
+        ##############################
+        ## append the current time point
+        time_points.append(cur_time)
+        ## calculate the standard deviation of the spectra
+        if (cur_iter == 0): peak_k_std.append(0)
+        else: peak_k_std.append(stdev(np.log10(data_y)))
+        ## calculate the peak of the spectra
+        peak_k.append(data_x[data_y.index(max(data_y))])
+    #################### CALCULATE MOVING AVERAGE
+    ##############################
+    window_size = 1 # moving average window size
+    peak_k_moving_ave = []
+    for tmp_index in range(len(peak_k)):
+        if tmp_index < window_size:
+            peak_k_moving_ave.append(peak_k[tmp_index])
+        else:
+            ## calculate moving average of the magnetic spectra peak
+            peak_k_moving_ave.append(sum(peak_k[tmp_index : tmp_index + window_size]) / window_size)
+    #################### CALCULATE STANDARD DEVIATION BAND
+    ##############################
+    peak_k_std_low = []
+    peak_k_std_high = []
+    for val, std_val in zip(peak_k_moving_ave, peak_k_std):
+        peak_k_std_low.append(val - std_val)
+        peak_k_std_high.append(val + std_val)
+    ## return data
+    print(' ')
+    return time_points, peak_k_moving_ave, peak_k_std_low, peak_k_std_high
 
 ##################################################################
 ## INPUT COMMAND LINE ARGUMENTS
@@ -139,12 +189,12 @@ ap = argparse.ArgumentParser(description='A bunch of input arguments')
 ap.add_argument('-debug',      type=str2bool,   default=False,        required=False, help='Debug mode', nargs='?', const=True)
 ap.add_argument('-sub_folder', type=str,        default='spectFiles', required=False, help='Name of the folder where the data is stored')
 ap.add_argument('-vis_folder', type=str,        default='visFiles',   required=False, help='Name of the plot folder')
-ap.add_argument('-ani_start',  type=str,        default='0',          required=False, help='First file number to animate')
-ap.add_argument('-ani_fps',    type=str,        default='40',         required=False, help='The animation frame rate')
 ap.add_argument('-file_start', type=int,        default=0,            required=False, help='First file to process')
 ap.add_argument('-file_end',   type=int,        default=np.Inf,       required=False, help='Last file to process')
 ## ------------------- DEFINE REQUIRED ARGUMENTS
 ap.add_argument('-base_path',  type=str,        required=True, help='Filepath to the base folder')
+ap.add_argument('-dat_folder1', type=str, required=True, help='Name of the first folder')
+ap.add_argument('-dat_folder2', type=str, required=True, help='Name of the second folder')
 ap.add_argument('-pre_name',   type=str,        required=True, help='Name of figures')
 ## ---------------------------- OPEN ARGUMENTS
 args = vars(ap.parse_args())
@@ -152,10 +202,10 @@ args = vars(ap.parse_args())
 bool_debug_mode = args['debug']       # enable/disable debug mode
 file_start      = args['file_start']  # starting processing frame
 file_end        = args['file_end']    # the last file to process
-ani_start       = args['ani_start']   # starting animation frame
-ani_fps         = args['ani_fps']     # animation's fps
 ## ---------------------------- SAVE FILEPATH PARAMETERS
 filepath_base   = args['base_path']   # home directory
+folder_data_1   = args['dat_folder1'] # first subfolder's name
+folder_data_2   = args['dat_folder2'] # second subfolder's name
 folder_vis      = args['vis_folder']  # subfolder where animation and plots will be saved
 folder_sub      = args['sub_folder']  # sub-subfolder where data is stored's name
 pre_name        = args['pre_name']    # name of figures
@@ -164,13 +214,17 @@ pre_name        = args['pre_name']    # name of figures
 if filepath_base.endswith('/'):
     filepath_base = filepath_base[:-1]
 ## replace any '//' with '/'
-filepath_base   = filepath_base.replace('//', '/')
+filepath_base = filepath_base.replace('//', '/')
 ## remove '/' from variable names
-folder_vis      = stringChop(folder_vis, '/')
-folder_sub      = stringChop(folder_sub, '/')
-pre_name        = stringChop(pre_name, '/')
+folder_data_1 = stringChop(folder_data_1, '/')
+folder_data_2 = stringChop(folder_data_2, '/')
+folder_vis    = stringChop(folder_vis, '/')
+folder_sub    = stringChop(folder_sub, '/')
+pre_name      = stringChop(pre_name, '/')
 ## ---------------------------- START CODE
 print('Began running the spectra plotting code in base filepath: \n\t' + filepath_base)
+print('Data folder 1: '                                                + folder_data_1)
+print('Data folder 2: '                                                + folder_data_2)
 print('Visualising folder: '                                           + folder_vis)
 print('Figure name: '                                                  + pre_name)
 print(' ')
@@ -178,93 +232,58 @@ print(' ')
 ##################################################################
 ## USER VARIABLES
 ##################################################################
+global t_eddy
 t_eddy = 10 # number of spectra files per eddy turnover # TODO: input?
-## specify which variables you want to plot
-global var_x, var_y
-var_x = 1  # variable: wave number (k)
-var_y = 15 # variable: power spectrum
-label_kin = r'$\mathcal{P}_{k_{B}=10, \mathregular{kin}}$'
-label_mag = r'$\mathcal{P}_{k_{B}=10, \mathregular{mag}}$'
-## set the figure's axis limits
-xlim_min = 1.0
-xlim_max = 1.3e+02
-ylim_min = 1.0e-25
-ylim_max = 4.2e-03
 
 ##################################################################
 ## INITIALISING VARIABLES
 ##################################################################
-filepath_data = createFilePath([filepath_base, folder_sub])
-filepath_plot = createFilePath([filepath_base, folder_vis, 'plotSpectra']) # folder where plots will be saved
-file_names, num_figs = setupInfo(filepath_data)
+filepath_data_1 = createFilePath([filepath_base, folder_data_1, folder_sub]) # first folder with data
+filepath_data_2 = createFilePath([filepath_base, folder_data_2, folder_sub]) # second folder with data
+filepath_plot   = createFilePath([filepath_base, folder_vis, 'plotSpectra']) # folder where plots will be saved
 createFolder(filepath_plot) # create folder where plots are saved
 
-for var_iter in range(num_figs):
-    #################### INITIALISE LOOP
-    ####################################
-    fig = plt.figure(figsize=(10, 7), dpi=100)
-    var_time = var_iter/t_eddy # normalise time point by eddy-turnover time
-    print('Processing: %0.3f%% complete'%(100 * var_iter/num_figs))
-    #################### LOAD DATA
-    ##############################
-    print('Loading data...')
-    name_file_kin = 'Turb_hdf5_plt_cnt_' + '{0:04}'.format(var_iter) + '_spect_vels.dat' # kinetic file
-    name_file_mag = 'Turb_hdf5_plt_cnt_' + '{0:04}'.format(var_iter) + '_spect_mags.dat' # magnetic file
-    data_x_kin, data_y_kin = loadData(filepath_data + '/' + name_file_kin) # kinetic power spectrum
-    data_x_mag, data_y_mag = loadData(filepath_data + '/' + name_file_mag) # magnetic power spectrum
-    #################### PLOT DATA
-    ##############################
-    print('Plotting data...')
-    line_kin, = plt.plot(data_x_kin, data_y_kin, 'k', label=label_kin) # kinetic power spectrum
-    line_mag, = plt.plot(data_x_mag, data_y_mag, 'k--', label=label_mag) # magnetic power spectrum
-    #################### LABEL and ADJUST PLOT
-    ##########################################
-    print('Labelling plot...')
-    ## scale axies
-    plt.xscale('log')
-    plt.yscale('log')
-    ## set axis limits
-    plt.xlim(xlim_min, xlim_max)
-    plt.ylim(ylim_min, ylim_max)
-    ## annote time (eddy tunrover-time)
-    title = plt.annotate(r'$t/t_{\mathregular{eddy}} = $' + u'%0.2f'%(var_time),
-                    xy=(0.5, 0.95),
-                    fontsize=20, color='black', 
-                    ha='center', va='top', xycoords='axes fraction')
-    # label plots
-    plt.xlabel(r'$k$',           fontsize=20)
-    plt.ylabel(r'$\mathcal{P}$', fontsize=20)
-    ## major grid
-    plt.grid(which='major', linestyle='-', linewidth='0.5', color='black', alpha=0.35)
-    ## minor grid
-    plt.grid(which='minor', linestyle='--', linewidth='0.5', color='black', alpha=0.2)
-    #################### SAVE IMAGE
-    ###############################
-    print('Saving figure...')
-    temp_name = createFilePath([filepath_plot, (pre_name + '_spectra={0:06}'.format(int(var_time*10)) + '.png')])
-    plt.savefig(temp_name)
-    plt.close()
-    print('Figure saved: ' + temp_name)
-    print(' ')
+fig = plt.figure(figsize=(10, 7), dpi=100)
 
-## create animation
-filepath_input  = createFilePath([filepath_plot, (pre_name + '_spectra=%06d.png')])
-filepath_output = createFilePath([filepath_plot, ('../' + pre_name + '_ani_spectra.mp4')])
-ffmpeg_input    = ('ffmpeg -start_number '          + ani_start + 
-                ' -i '                              + filepath_input + 
-                ' -vb 40M -framerate '              + ani_fps + 
-                ' -vf scale=1440:-1 -vcodec mpeg4 ' + filepath_output)
-if bool_debug_mode:
-    print('--------- Debug: Check FFMPEG input -----------------------------------')
-    print('Input: \n\t' + filepath_input)
-    print('Output: \n\t' + filepath_output)
-    print('FFMPEG input: \n\t' + ffmpeg_input)
-    print(' ')
-else:
-    print('Animating plots...')
-    os.system(ffmpeg_input) 
-    print('Animation finished: ' + filepath_output)
-    # eg. To check: execute the following within the visualising folder
-    # ffmpeg -start_number 0 -i ./plotSlices/dyna288_spectra=%06d.png -vb 40M -framerate 40 -vf scale=1440:-1 -vcodec mpeg4 ./dyna288_ani_spectra.mp4
+##################################################################
+## PLOT DATA
+##################################################################
+## plot peak of magnetic power spectra
+## data set 1
+print('Loading Data Set 1...')
+time_points, peak_k_moving_ave, peak_k_std_low, peak_k_std_high = saveData(filepath_data_1)
+plt.fill_between(time_points, peak_k_std_low, peak_k_std_high, facecolor='r', alpha=0.2)
+plt.plot(time_points, peak_k_moving_ave, 'r-', label=r'Pm $= 10^{2}$')
+print(' ')
+## data set 2
+print('Loading Data Set 2...')
+time_points, peak_k_moving_ave, peak_k_std_low, peak_k_std_high = saveData(filepath_data_2)
+plt.fill_between(time_points, peak_k_std_low, peak_k_std_high, facecolor='b', alpha=0.2)
+plt.plot(time_points, peak_k_moving_ave, 'b-', label=r'Pm $= 10^{0}$')
+
+##################################################################
+## LABEL and ADJUST PLOT
+##################################################################
+print('\nLabelling plot...\n')
+## scale axis
+plt.yscale('log')
+plt.xlim(1.0, 1.3e+02)
+## label axies
+plt.xlabel(r'$t/T$', fontsize=28, rotation=0)
+plt.ylabel(r'$k_{max}$', fontsize=28, labelpad=10)
+## major grid
+plt.grid(which='major', linestyle='-', linewidth='0.5', color='black', alpha=0.35)
+## add legend
+plt.legend(loc='lower right', fontsize=24, frameon=True)
+
+##################################################################
+## SAVE FIGURE
+##################################################################
+print('Saving figure...')
+fig_name = createFilePath([filepath_plot, pre_name]) + '_k_peak_spectra.png'
+plt.savefig(fig_name, bbox_inches='tight', dpi=300)
+plt.close()
+print('Figure saved: ' + fig_name)
+print(' ')
 
 ## END OF PROGRAM

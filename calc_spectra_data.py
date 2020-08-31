@@ -3,7 +3,7 @@
 ''' AUTHOR: Neco Kriel
     
     EXAMPLE: 
-    runSpectra
+    calc_spectra_data.py
         (required)
             -base_path      /Users/dukekriel/Documents/University/Year4Sem2/Summer-19/ANU-Turbulence-Dynamo/dyna288_Bk10/hdf5Files
             -num_proc       4
@@ -40,11 +40,12 @@ def str2bool(v):
         raise argparse.ArgumentTypeError('Boolean value expected.')
 
 def meetsFirstCondition(element):
-    global file_start, file_end
+    global file_start, file_end, filename
     ## accept files that look like: Turb_hdf5_plt_cnt_
-    if (element.startswith('Turb_hdf5_plt_cnt_') and not(element.endswith('.dat'))):
+    if (element.startswith(filename) and not(element.endswith('.dat'))):
         ## check that the file is within the domain range
-        bool_domain_right = bool(int(element.split('_')[4]) >= file_start) and (int(element.split('_')[4]) <= file_end)
+        index_num = len(element.split('_')) - 1
+        bool_domain_right = bool(int(element.split('_')[index_num]) >= file_start) and (int(element.split('_')[index_num]) <= file_end)
         ## check the file is not magnetic or velocity data
         bool_spectra = not(element.__contains__('_spect_'))
         return (bool_spectra and bool_domain_right)
@@ -54,9 +55,10 @@ def meetsFirstCondition(element):
 def meetsSecondCondition(element):
     global file_start, file_end
     ## accept files that look like: Turb_hdf5_plt_cnt_*(mags.dat or vels.dat)
-    if (element.startswith('Turb_hdf5_plt_cnt_') and (element.endswith('mags.dat') or element.endswith('vels.dat'))):
+    if (element.startswith(filename) and (element.endswith('mags.dat') or element.endswith('vels.dat'))):
         ## check that the file is within the domain range
-        bool_domain_right = bool(int(element.split('_')[4]) >= file_start) and (int(element.split('_')[4]) <= file_end)
+        index_num = len(element.split('_')) - 1
+        bool_domain_right = bool(int(element.split('_')[index_num]) >= file_start) and (int(element.split('_')[index_num]) <= file_end)
         return bool_domain_right
     else:
         return False
@@ -74,16 +76,19 @@ global file_start, file_end
 ap = argparse.ArgumentParser(description='A bunch of input arguments')
 ## ------------------- DEFINE OPTIONAL ARGUMENTS
 ap.add_argument('-check_only', type=str2bool,   default=False,  required=False, help='Only check which files dont exist', nargs='?', const=True)
-ap.add_argument('-file_start', type=int,        default=0,      required=False, help='File number to start processing from')
-ap.add_argument('-file_end',   type=int,        default=np.Inf, required=False, help='File number to end processing from')
-ap.add_argument('-num_proc',   type=str,        default='8',    required=False, help='Number of processors')
+ap.add_argument('-file_start', type=int, default=0,      required=False, help='File number to start processing from')
+ap.add_argument('-file_end',   type=int, default=np.Inf, required=False, help='File number to end processing from')
+ap.add_argument('-num_proc',   type=str, default='8',    required=False, help='Number of processors')
+ap.add_argument('-file_name',  type=str, default='Turb_hdf5_plt_cnt_', required=False, help='Name of the file')
 ## ------------------- DEFINE REQUIRED ARGUMENTS
-ap.add_argument('-base_path',  type=str,        required=True, help='Filepath to where files are located')
+ap.add_argument('-base_path',  type=str, required=True, help='Filepath to where files are located')
 ## ---------------------------- OPEN ARGUMENTS
 args = vars(ap.parse_args())
 ## ---------------------------- SAVE PARAMETERS
+global filename
 bool_check_only = args['check_only'] # only check for missing hdf5 spectra files
 filepath        = args['base_path']  # base filepath to data
+filename        = args['file_name']  # name of the file
 file_start      = args['file_start'] # first file to process
 file_end        = args['file_end']   # last file to process
 num_proc        = args['num_proc']   # number of processors
@@ -95,6 +100,7 @@ if filepath.endswith('/'):
 filepath = filepath.replace('//', '/')
 ## ---------------------------- START CODE
 print("Began running the spectra code in folder: " + filepath)
+print("Start of the name of the files: "           + filename)
 print("First file number: "                        + str(file_start))
 print("Last file number: "                         + str(file_end))
 print("Number processors: "                        + str(num_proc))
@@ -105,7 +111,7 @@ print(' ')
 ##################################################################
 # loop over filepath and execute spectra for each 'plot count' file
 file_names = sorted(filter(meetsFirstCondition, os.listdir(filepath)))
-print('There are ' + str(len(file_names)) + ' files to process.')
+print('There are ' + str(len(file_names)) + ' files (' + filename + ') to process.')
 print('These files are:')
 print('\t' + '\n\t'.join(file_names))
 print(' ')
@@ -115,7 +121,7 @@ if not(bool_check_only):
 
 ## save the names of all output files
 spect_names = sorted(filter(meetsSecondCondition, os.listdir(filepath)))
-## check if there are any files that weren't processed properly
+## check if there are any files that haven't been processed properly
 redo_names = [] # initialise list of files to reprocess
 for file_name in file_names:
     ## for each hdf5 file, check if there exists magnetic and velocity output files
