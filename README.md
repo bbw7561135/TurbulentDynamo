@@ -1,2 +1,2 @@
 # TurbulentDynamo
-Code to investigate the turbulent dynamo phenomena from data produced by FLASH v4 simulations.
+Code to investigate the magnetic growth scale in small-scale turbulent dynamo.
